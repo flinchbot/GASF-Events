@@ -1,0 +1,196 @@
+<?php
+/**
+ * The "All Events" list table: columns, sortable event date, and the
+ * text / date-range / status / source filters. See §4.5.
+ *
+ * Bulk Actions (Publish to Eventbrite, Export CSV/ICS) and the Views/Stats
+ * surfacing are wired in the syndication + stats phase (P6); the Views and
+ * Eventbrite columns render here now and fill in then.
+ *
+ * @package GASF_Events
+ */
+
+namespace GASF_Events;
+
+defined( 'ABSPATH' ) || exit;
+
+final class Admin_List {
+
+	public function register_hooks(): void {
+		$cpt = GASF_EVENTS_CPT;
+		add_filter( "manage_{$cpt}_posts_columns", [ $this, 'columns' ] );
+		add_action( "manage_{$cpt}_posts_custom_column", [ $this, 'render_column' ], 10, 2 );
+		add_filter( "manage_edit-{$cpt}_sortable_columns", [ $this, 'sortable' ] );
+		add_action( 'restrict_manage_posts', [ $this, 'filters_ui' ] );
+		add_action( 'pre_get_posts', [ $this, 'apply_query' ] );
+	}
+
+	public function columns( array $cols ): array {
+		$out = [];
+		foreach ( $cols as $key => $label ) {
+			if ( 'title' === $key ) {
+				$out['gas_thumb'] = __( 'Cover', 'gasf-events' );
+			}
+			if ( 'date' === $key ) {
+				$label = __( 'Added', 'gasf-events' ); // WP's post-date column = when it entered the system.
+				$out['gas_event_date'] = __( 'Event date', 'gasf-events' );
+				$out['gas_recurring']  = __( 'Recurring', 'gasf-events' );
+				$out['gas_status']     = __( 'Status', 'gasf-events' );
+				$out['gas_source']     = __( 'Source', 'gasf-events' );
+				$out['gas_views']      = __( 'Views', 'gasf-events' );
+				$out['gas_eb']         = __( 'Eventbrite', 'gasf-events' );
+			}
+			$out[ $key ] = $label;
+		}
+		return $out;
+	}
+
+	public function sortable( array $cols ): array {
+		$cols['gas_event_date'] = 'gas_event_date';
+		$cols['gas_views']      = 'gas_views';
+		return $cols;
+	}
+
+	public function render_column( string $column, int $post_id ): void {
+		$event = Event::get( $post_id );
+		if ( ! $event ) {
+			return;
+		}
+		switch ( $column ) {
+			case 'gas_thumb':
+				echo has_post_thumbnail( $post_id )
+					? get_the_post_thumbnail( $post_id, [ 60, 60 ] )
+					: '<span style="color:#bbb;">—</span>';
+				break;
+
+			case 'gas_event_date':
+				$s = $event->start();
+				if ( $s ) {
+					$fmt = $event->is_all_day() ? get_option( 'date_format' ) : get_option( 'date_format' ) . ' ' . get_option( 'time_format' );
+					echo esc_html( wp_date( $fmt, $event->start_ts() ) );
+					if ( $event->is_multiday() && $event->end() ) {
+						echo '<br><small>→ ' . esc_html( wp_date( get_option( 'date_format' ), $event->end_ts() ) ) . '</small>';
+					}
+					if ( $event->is_past() ) {
+						echo ' <small style="color:#999;">(' . esc_html__( 'past', 'gasf-events' ) . ')</small>';
+					}
+				} else {
+					echo '<span style="color:#cc0000;">' . esc_html__( 'no date', 'gasf-events' ) . '</span>';
+				}
+				break;
+
+			case 'gas_recurring':
+				echo $event->is_recurring()
+					? '<span title="' . esc_attr__( 'Part of a recurring series', 'gasf-events' ) . '" style="color:#46810b;font-size:18px;">&#10003;</span>'
+					: '<span style="color:#ccc;">—</span>';
+				break;
+
+			case 'gas_status':
+				$s = $event->status();
+				echo $s
+					? '<span style="color:#b32d2e;font-weight:600;">' . esc_html( $event->status_label() ) . '</span>'
+					: esc_html( $event->status_label() );
+				break;
+
+			case 'gas_source':
+				echo $event->is_facebook()
+					? '<span style="background:#1877f2;color:#fff;padding:1px 6px;border-radius:3px;font-size:11px;">FB</span>'
+					: esc_html__( 'Manual', 'gasf-events' );
+				break;
+
+			case 'gas_views':
+				echo esc_html( number_format_i18n( $event->views() ) );
+				break;
+
+			case 'gas_eb':
+				$url = $event->eventbrite_url();
+				echo $url
+					? '<a href="' . esc_url( $url ) . '" target="_blank" rel="noopener">' . esc_html__( 'Published', 'gasf-events' ) . '</a>'
+					: '<span style="color:#ccc;">—</span>';
+				break;
+		}
+	}
+
+	/** Render the date-range / status / source filter controls. */
+	public function filters_ui( string $post_type ): void {
+		if ( GASF_EVENTS_CPT !== $post_type ) {
+			return;
+		}
+		$from   = isset( $_GET['gasf_from'] ) ? sanitize_text_field( wp_unslash( $_GET['gasf_from'] ) ) : '';
+		$to     = isset( $_GET['gasf_to'] ) ? sanitize_text_field( wp_unslash( $_GET['gasf_to'] ) ) : '';
+		$status = isset( $_GET['gasf_status'] ) ? sanitize_text_field( wp_unslash( $_GET['gasf_status'] ) ) : '';
+		$source = isset( $_GET['gasf_source'] ) ? sanitize_text_field( wp_unslash( $_GET['gasf_source'] ) ) : '';
+		?>
+		<label class="screen-reader-text" for="gasf_from"><?php esc_html_e( 'Event date from', 'gasf-events' ); ?></label>
+		<input type="date" name="gasf_from" id="gasf_from" value="<?php echo esc_attr( $from ); ?>" title="<?php esc_attr_e( 'Event date from', 'gasf-events' ); ?>">
+		<input type="date" name="gasf_to" value="<?php echo esc_attr( $to ); ?>" title="<?php esc_attr_e( 'Event date to', 'gasf-events' ); ?>">
+		<select name="gasf_status">
+			<option value=""><?php esc_html_e( 'Any status', 'gasf-events' ); ?></option>
+			<?php foreach ( [ 'cancelled' => __( 'Cancelled', 'gasf-events' ), 'postponed' => __( 'Postponed', 'gasf-events' ), 'sold_out' => __( 'Sold out', 'gasf-events' ), 'online_only' => __( 'Online only', 'gasf-events' ) ] as $val => $label ) : ?>
+				<option value="<?php echo esc_attr( $val ); ?>" <?php selected( $status, $val ); ?>><?php echo esc_html( $label ); ?></option>
+			<?php endforeach; ?>
+		</select>
+		<select name="gasf_source">
+			<option value=""><?php esc_html_e( 'Any source', 'gasf-events' ); ?></option>
+			<option value="manual" <?php selected( $source, 'manual' ); ?>><?php esc_html_e( 'Manual', 'gasf-events' ); ?></option>
+			<option value="facebook" <?php selected( $source, 'facebook' ); ?>><?php esc_html_e( 'Facebook', 'gasf-events' ); ?></option>
+		</select>
+		<?php
+	}
+
+	/** Apply sorting + filters to the admin events query. */
+	public function apply_query( \WP_Query $q ): void {
+		if ( ! is_admin() || ! $q->is_main_query() || GASF_EVENTS_CPT !== $q->get( 'post_type' ) ) {
+			return;
+		}
+
+		// Sorting.
+		$orderby = $q->get( 'orderby' );
+		if ( 'gas_event_date' === $orderby ) {
+			$q->set( 'meta_key', Meta::START_TS );
+			$q->set( 'orderby', 'meta_value_num' );
+		} elseif ( 'gas_views' === $orderby ) {
+			$q->set( 'meta_key', Meta::VIEWS );
+			$q->set( 'orderby', 'meta_value_num' );
+		}
+
+		// Filters.
+		$meta_query = [];
+
+		$from = isset( $_GET['gasf_from'] ) ? sanitize_text_field( wp_unslash( $_GET['gasf_from'] ) ) : '';
+		$to   = isset( $_GET['gasf_to'] ) ? sanitize_text_field( wp_unslash( $_GET['gasf_to'] ) ) : '';
+		if ( $from || $to ) {
+			$range = [ 'key' => Meta::START_TS, 'type' => 'NUMERIC' ];
+			$min   = $from ? Meta::local_to_ts( $from . ' 00:00:00' ) : null;
+			$max   = $to ? Meta::local_to_ts( $to . ' 23:59:59' ) : null;
+			if ( null !== $min && null !== $max ) {
+				$range['value']   = [ $min, $max ];
+				$range['compare'] = 'BETWEEN';
+			} elseif ( null !== $min ) {
+				$range['value']   = $min;
+				$range['compare'] = '>=';
+			} else {
+				$range['value']   = $max;
+				$range['compare'] = '<=';
+			}
+			$meta_query[] = $range;
+		}
+
+		$status = isset( $_GET['gasf_status'] ) ? sanitize_text_field( wp_unslash( $_GET['gasf_status'] ) ) : '';
+		if ( $status ) {
+			$meta_query[] = [ 'key' => Meta::STATUS, 'value' => $status ];
+		}
+
+		$source = isset( $_GET['gasf_source'] ) ? sanitize_text_field( wp_unslash( $_GET['gasf_source'] ) ) : '';
+		if ( 'manual' === $source ) {
+			$meta_query[] = [ 'key' => Meta::FB_EVENT_ID, 'compare' => 'NOT EXISTS' ];
+		} elseif ( 'facebook' === $source ) {
+			$meta_query[] = [ 'key' => Meta::FB_EVENT_ID, 'compare' => 'EXISTS' ];
+		}
+
+		if ( $meta_query ) {
+			$existing = (array) $q->get( 'meta_query' );
+			$q->set( 'meta_query', array_merge( $existing, $meta_query ) );
+		}
+	}
+}

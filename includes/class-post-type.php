@@ -1,0 +1,75 @@
+<?php
+/**
+ * Registers the `gas_event` custom post type, its meta, and capabilities.
+ *
+ * @package GASF_Events
+ */
+
+namespace GASF_Events;
+
+defined( 'ABSPATH' ) || exit;
+
+final class Post_Type {
+
+	/** Capabilities granted to event managers. */
+	const CAPS = [
+		'edit_gas_event', 'read_gas_event', 'delete_gas_event',
+		'edit_gas_events', 'edit_others_gas_events', 'publish_gas_events',
+		'read_private_gas_events', 'delete_gas_events', 'delete_private_gas_events',
+		'delete_published_gas_events', 'delete_others_gas_events',
+		'edit_private_gas_events', 'edit_published_gas_events',
+	];
+
+	public function register_hooks(): void {
+		add_action( 'init', [ $this, 'register_post_type' ] );
+		add_action( 'init', [ Meta::class, 'register' ] );
+	}
+
+	public function register_post_type(): void {
+		$labels = [
+			'name'               => _x( 'Events', 'post type general name', 'gasf-events' ),
+			'singular_name'      => _x( 'Event', 'post type singular name', 'gasf-events' ),
+			'menu_name'          => _x( 'Events', 'admin menu', 'gasf-events' ),
+			'add_new'            => __( 'Add New', 'gasf-events' ),
+			'add_new_item'       => __( 'Add New Event', 'gasf-events' ),
+			'edit_item'          => __( 'Edit Event', 'gasf-events' ),
+			'new_item'           => __( 'New Event', 'gasf-events' ),
+			'view_item'          => __( 'View Event', 'gasf-events' ),
+			'search_items'       => __( 'Search Events', 'gasf-events' ),
+			'not_found'          => __( 'No events found', 'gasf-events' ),
+			'not_found_in_trash' => __( 'No events found in Trash', 'gasf-events' ),
+			'all_items'          => __( 'All Events', 'gasf-events' ),
+		];
+
+		register_post_type( GASF_EVENTS_CPT, [
+			'labels'              => $labels,
+			'public'              => true,
+			'has_archive'         => true,
+			'show_in_rest'        => true,
+			'rest_base'           => 'gas-events',
+			'menu_icon'           => 'dashicons-calendar-alt',
+			'menu_position'       => 25,
+			'supports'            => [ 'title', 'editor', 'thumbnail', 'revisions', 'author', 'custom-fields' ],
+			'rewrite'             => [ 'slug' => GASF_EVENTS_REWRITE_SLUG, 'with_front' => false ],
+			'capability_type'     => [ 'gas_event', 'gas_events' ],
+			'map_meta_cap'        => true,
+			'hierarchical'        => false,
+		] );
+	}
+
+	/**
+	 * Grant event capabilities to the given roles. Called on activation.
+	 * Administrator gets everything; Editor acts as the "Maintainer".
+	 */
+	public static function grant_caps(): void {
+		foreach ( [ 'administrator', 'editor' ] as $role_name ) {
+			$role = get_role( $role_name );
+			if ( ! $role ) {
+				continue;
+			}
+			foreach ( self::CAPS as $cap ) {
+				$role->add_cap( $cap );
+			}
+		}
+	}
+}

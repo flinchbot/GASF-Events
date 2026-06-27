@@ -1,0 +1,52 @@
+<?php
+/**
+ * Plugin Name:       GASF Events
+ * Plugin URI:        https://github.com/flinchbot/GASF-Events
+ * Description:       Lean, native events for the German American Society — replaces Modern Events Calendar. Owns event data, display, Facebook import, Eventbrite/Google syndication, and public feeds.
+ * Version:           0.1.0
+ * Requires at least: 6.0
+ * Requires PHP:      8.0
+ * Author:            flinchbot
+ * License:           GPL-2.0-or-later
+ * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
+ * Text Domain:       gasf-events
+ *
+ * @package GASF_Events
+ *
+ * Architecture: see docs/ARCHITECTURE.md. During the parallel-run dev phase the
+ * CPT registers under the temporary slug `gas-events` so it never collides with
+ * the live MEC `/events/` URLs; at cutover the slug switches to `events`.
+ */
+
+namespace GASF_Events;
+
+defined( 'ABSPATH' ) || exit;
+
+define( 'GASF_EVENTS_VERSION', '0.1.0' );
+define( 'GASF_EVENTS_FILE', __FILE__ );
+define( 'GASF_EVENTS_DIR', plugin_dir_path( __FILE__ ) );
+define( 'GASF_EVENTS_URL', plugin_dir_url( __FILE__ ) );
+
+/**
+ * The custom post type slug. Code refers to this constant, never a literal,
+ * so the temp→final ('gas-events'→'events') cutover is a one-line change.
+ */
+define( 'GASF_EVENTS_CPT', 'gas_event' );
+
+/**
+ * URL rewrite base. Temp slug during parallel run; flip to 'events' at cutover
+ * (see docs/ARCHITECTURE.md §8).
+ */
+if ( ! defined( 'GASF_EVENTS_REWRITE_SLUG' ) ) {
+	define( 'GASF_EVENTS_REWRITE_SLUG', 'gas-events' );
+}
+
+require_once GASF_EVENTS_DIR . 'includes/class-plugin.php';
+
+register_activation_hook( __FILE__, [ Plugin::class, 'activate' ] );
+register_deactivation_hook( __FILE__, [ Plugin::class, 'deactivate' ] );
+
+// Boot after all plugins load so we can detect Yoast, MEC (during parallel run), etc.
+add_action( 'plugins_loaded', static function () {
+	Plugin::instance()->boot();
+} );
