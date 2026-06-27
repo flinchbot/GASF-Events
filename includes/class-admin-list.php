@@ -29,16 +29,16 @@ final class Admin_List {
 		$out = [];
 		foreach ( $cols as $key => $label ) {
 			if ( 'title' === $key ) {
-				$out['gas_thumb'] = __( 'Cover', 'gasf-events' );
+				$out['gasf_thumb'] = __( 'Cover', 'gasf-events' );
 			}
 			if ( 'date' === $key ) {
 				$label = __( 'Added', 'gasf-events' ); // WP's post-date column = when it entered the system.
-				$out['gas_event_date'] = __( 'Event date', 'gasf-events' );
-				$out['gas_recurring']  = __( 'Recurring', 'gasf-events' );
-				$out['gas_status']     = __( 'Status', 'gasf-events' );
-				$out['gas_source']     = __( 'Source', 'gasf-events' );
-				$out['gas_views']      = __( 'Views', 'gasf-events' );
-				$out['gas_eb']         = __( 'Eventbrite', 'gasf-events' );
+				$out['gasf_event_date'] = __( 'Event date', 'gasf-events' );
+				$out['gasf_recurring']  = __( 'Recurring', 'gasf-events' );
+				$out['gasf_status']     = __( 'Status', 'gasf-events' );
+				$out['gasf_source']     = __( 'Source', 'gasf-events' );
+				$out['gasf_views']      = __( 'Views', 'gasf-events' );
+				$out['gasf_eb']         = __( 'Eventbrite', 'gasf-events' );
 			}
 			$out[ $key ] = $label;
 		}
@@ -46,8 +46,8 @@ final class Admin_List {
 	}
 
 	public function sortable( array $cols ): array {
-		$cols['gas_event_date'] = 'gas_event_date';
-		$cols['gas_views']      = 'gas_views';
+		$cols['gasf_event_date'] = 'gasf_event_date';
+		$cols['gasf_views']      = 'gasf_views';
 		return $cols;
 	}
 
@@ -57,13 +57,13 @@ final class Admin_List {
 			return;
 		}
 		switch ( $column ) {
-			case 'gas_thumb':
+			case 'gasf_thumb':
 				echo has_post_thumbnail( $post_id )
 					? get_the_post_thumbnail( $post_id, [ 60, 60 ] )
 					: '<span style="color:#bbb;">—</span>';
 				break;
 
-			case 'gas_event_date':
+			case 'gasf_event_date':
 				$s = $event->start();
 				if ( $s ) {
 					$fmt = $event->is_all_day() ? get_option( 'date_format' ) : get_option( 'date_format' ) . ' ' . get_option( 'time_format' );
@@ -79,30 +79,30 @@ final class Admin_List {
 				}
 				break;
 
-			case 'gas_recurring':
+			case 'gasf_recurring':
 				echo $event->is_recurring()
 					? '<span title="' . esc_attr__( 'Part of a recurring series', 'gasf-events' ) . '" style="color:#46810b;font-size:18px;">&#10003;</span>'
 					: '<span style="color:#ccc;">—</span>';
 				break;
 
-			case 'gas_status':
+			case 'gasf_status':
 				$s = $event->status();
 				echo $s
 					? '<span style="color:#b32d2e;font-weight:600;">' . esc_html( $event->status_label() ) . '</span>'
 					: esc_html( $event->status_label() );
 				break;
 
-			case 'gas_source':
+			case 'gasf_source':
 				echo $event->is_facebook()
 					? '<span style="background:#1877f2;color:#fff;padding:1px 6px;border-radius:3px;font-size:11px;">FB</span>'
 					: esc_html__( 'Manual', 'gasf-events' );
 				break;
 
-			case 'gas_views':
+			case 'gasf_views':
 				echo esc_html( number_format_i18n( $event->views() ) );
 				break;
 
-			case 'gas_eb':
+			case 'gasf_eb':
 				$url = $event->eventbrite_url();
 				echo $url
 					? '<a href="' . esc_url( $url ) . '" target="_blank" rel="noopener">' . esc_html__( 'Published', 'gasf-events' ) . '</a>'
@@ -146,10 +146,10 @@ final class Admin_List {
 
 		// Sorting.
 		$orderby = $q->get( 'orderby' );
-		if ( 'gas_event_date' === $orderby ) {
+		if ( 'gasf_event_date' === $orderby ) {
 			$q->set( 'meta_key', Meta::START_TS );
 			$q->set( 'orderby', 'meta_value_num' );
-		} elseif ( 'gas_views' === $orderby ) {
+		} elseif ( 'gasf_views' === $orderby ) {
 			$q->set( 'meta_key', Meta::VIEWS );
 			$q->set( 'orderby', 'meta_value_num' );
 		}

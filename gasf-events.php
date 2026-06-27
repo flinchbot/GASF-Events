@@ -14,7 +14,7 @@
  * @package GASF_Events
  *
  * Architecture: see docs/ARCHITECTURE.md. During the parallel-run dev phase the
- * CPT registers under the temporary slug `gas-events` so it never collides with
+ * CPT registers under the temporary slug `gasf-events` so it never collides with
  * the live MEC `/events/` URLs; at cutover the slug switches to `events`.
  */
 
@@ -29,16 +29,16 @@ define( 'GASF_EVENTS_URL', plugin_dir_url( __FILE__ ) );
 
 /**
  * The custom post type slug. Code refers to this constant, never a literal,
- * so the temp→final ('gas-events'→'events') cutover is a one-line change.
+ * so the temp→final ('gasf-events'→'events') cutover is a one-line change.
  */
-define( 'GASF_EVENTS_CPT', 'gas_event' );
+define( 'GASF_EVENTS_CPT', 'gasf_event' );
 
 /**
  * URL rewrite base. Temp slug during parallel run; flip to 'events' at cutover
  * (see docs/ARCHITECTURE.md §8).
  */
 if ( ! defined( 'GASF_EVENTS_REWRITE_SLUG' ) ) {
-	define( 'GASF_EVENTS_REWRITE_SLUG', 'gas-events' );
+	define( 'GASF_EVENTS_REWRITE_SLUG', 'gasf-events' );
 }
 
 require_once GASF_EVENTS_DIR . 'includes/class-plugin.php';

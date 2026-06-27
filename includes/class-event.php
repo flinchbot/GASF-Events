@@ -1,6 +1,6 @@
 <?php
 /**
- * Event model — a typed wrapper around a `gas_event` post.
+ * Event model — a typed wrapper around a `gasf_event` post.
  *
  * Everything downstream (display, schema, feeds, admin) reads events through
  * this object rather than poking raw meta, so date/time and fallback logic

@@ -3,7 +3,7 @@
  * Uninstall cleanup.
  *
  * Conservative on purpose: removes only the plugin's own options and the
- * capabilities it added. It does NOT delete `gas_event` posts or `_gas_*`
+ * capabilities it added. It does NOT delete `gasf_event` posts or `_gasf_*`
  * meta — event data is the club's, not the plugin's, and must survive an
  * accidental uninstall. (Permanent data removal, if ever wanted, is a
  * deliberate WP-CLI step, not an uninstall side effect.)
@@ -13,16 +13,16 @@
 
 defined( 'WP_UNINSTALL_PLUGIN' ) || exit;
 
-delete_option( 'gas_events_venue' );
-delete_option( 'gas_events_organizer' );
-delete_option( 'gas_events_default_image' );
+delete_option( 'gasf_events_venue' );
+delete_option( 'gasf_events_organizer' );
+delete_option( 'gasf_events_default_image' );
 
 $caps = [
-	'edit_gas_event', 'read_gas_event', 'delete_gas_event',
-	'edit_gas_events', 'edit_others_gas_events', 'publish_gas_events',
-	'read_private_gas_events', 'delete_gas_events', 'delete_private_gas_events',
-	'delete_published_gas_events', 'delete_others_gas_events',
-	'edit_private_gas_events', 'edit_published_gas_events',
+	'edit_gasf_event', 'read_gasf_event', 'delete_gasf_event',
+	'edit_gasf_events', 'edit_others_gasf_events', 'publish_gasf_events',
+	'read_private_gasf_events', 'delete_gasf_events', 'delete_private_gasf_events',
+	'delete_published_gasf_events', 'delete_others_gasf_events',
+	'edit_private_gasf_events', 'edit_published_gasf_events',
 ];
 foreach ( [ 'administrator', 'editor' ] as $role_name ) {
 	$role = get_role( $role_name );

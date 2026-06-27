@@ -1,6 +1,6 @@
 <?php
 /**
- * Registers the `gas_event` custom post type, its meta, and capabilities.
+ * Registers the `gasf_event` custom post type, its meta, and capabilities.
  *
  * @package GASF_Events
  */
@@ -13,11 +13,11 @@ final class Post_Type {
 
 	/** Capabilities granted to event managers. */
 	const CAPS = [
-		'edit_gas_event', 'read_gas_event', 'delete_gas_event',
-		'edit_gas_events', 'edit_others_gas_events', 'publish_gas_events',
-		'read_private_gas_events', 'delete_gas_events', 'delete_private_gas_events',
-		'delete_published_gas_events', 'delete_others_gas_events',
-		'edit_private_gas_events', 'edit_published_gas_events',
+		'edit_gasf_event', 'read_gasf_event', 'delete_gasf_event',
+		'edit_gasf_events', 'edit_others_gasf_events', 'publish_gasf_events',
+		'read_private_gasf_events', 'delete_gasf_events', 'delete_private_gasf_events',
+		'delete_published_gasf_events', 'delete_others_gasf_events',
+		'edit_private_gasf_events', 'edit_published_gasf_events',
 	];
 
 	public function register_hooks(): void {
@@ -46,12 +46,12 @@ final class Post_Type {
 			'public'              => true,
 			'has_archive'         => true,
 			'show_in_rest'        => true,
-			'rest_base'           => 'gas-events',
+			'rest_base'           => 'gasf-events',
 			'menu_icon'           => 'dashicons-calendar-alt',
 			'menu_position'       => 25,
 			'supports'            => [ 'title', 'editor', 'thumbnail', 'revisions', 'author', 'custom-fields' ],
 			'rewrite'             => [ 'slug' => GASF_EVENTS_REWRITE_SLUG, 'with_front' => false ],
-			'capability_type'     => [ 'gas_event', 'gas_events' ],
+			'capability_type'     => [ 'gasf_event', 'gasf_events' ],
 			'map_meta_cap'        => true,
 			'hierarchical'        => false,
 		] );

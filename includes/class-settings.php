@@ -13,9 +13,9 @@ defined( 'ABSPATH' ) || exit;
 
 final class Settings {
 
-	const OPT_VENUE      = 'gas_events_venue';
-	const OPT_ORGANIZER  = 'gas_events_organizer';
-	const OPT_DEFAULT_IMG = 'gas_events_default_image';
+	const OPT_VENUE      = 'gasf_events_venue';
+	const OPT_ORGANIZER  = 'gasf_events_organizer';
+	const OPT_DEFAULT_IMG = 'gasf_events_default_image';
 
 	public function register_hooks(): void {
 		add_action( 'admin_menu', [ $this, 'add_settings_page' ] );
