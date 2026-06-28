@@ -29,17 +29,22 @@
 .gasf-grid__head { display:grid; grid-template-columns:repeat(7, minmax(0, 1fr)); gap:4px; margin-bottom:4px; }
 .gasf-grid__head span { font-size:.75rem; text-transform:uppercase; letter-spacing:.04em; opacity:.6; padding:4px 6px; overflow:hidden; text-overflow:ellipsis; }
 .gasf-grid__week { display:grid; grid-template-columns:repeat(7, minmax(0, 1fr)); gap:4px; margin-bottom:4px; }
-.gasf-day { min-width:0; min-height:96px; overflow:hidden; border:1px solid var(--gasf-border); border-radius:var(--gasf-radius); padding:4px 6px; background:var(--gasf-surface); color:var(--gasf-text); }
+/* overflow:visible so the chip's hover lift/shadow isn't clipped by the cell;
+   layout is constrained by the grid columns + per-chip wrapping, not the cell. */
+.gasf-day { min-width:0; min-height:96px; overflow:visible; border:1px solid var(--gasf-border); border-radius:var(--gasf-radius); padding:4px 6px; background:var(--gasf-surface); color:var(--gasf-text); transition:border-color .12s ease, box-shadow .12s ease; }
+.gasf-day:hover { border-color:var(--gasf-accent); box-shadow:0 1px 7px rgba(0,0,0,.07); }
 .gasf-day.is-out { background:#faf9f6; }
 .gasf-day.is-out .gasf-day__num { color:#c4c0b6; }
 .gasf-day.is-today { background:linear-gradient(180deg,#fff7e6,var(--gasf-surface) 60%); outline:2px solid var(--gasf-accent); outline-offset:-1px; }
 .gasf-day.is-today .gasf-day__num { color:var(--gasf-accent); }
 .gasf-day__num { font-weight:700; font-size:.85rem; }
-.gasf-day__events { list-style:none; margin:4px 0 0; padding:0; display:flex; flex-direction:column; gap:3px; min-width:0; }
-.gasf-chip { display:block; max-width:100%; box-sizing:border-box; font-size:.72rem; line-height:1.2; text-decoration:none; color:var(--gasf-text); background:var(--gasf-chip); border-left:3px solid var(--gasf-accent); padding:2px 5px; border-radius:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; transition:transform .13s ease, box-shadow .13s ease, background-color .13s ease; will-change:transform; }
-.gasf-chip:hover, .gasf-chip:focus-visible { transform:translateX(3px); background:#fff; box-shadow:0 3px 12px rgba(0,0,0,.18); outline:none; }
-.gasf-chip--cancelled { text-decoration:line-through; border-left-color:var(--gasf-cancelled); opacity:.8; }
-.gasf-chip--postponed { border-left-color:#c98a00; }
+.gasf-day__events { list-style:none; margin:4px 0 0; padding:0; display:flex; flex-direction:column; gap:2px; min-width:0; }
+.gasf-chip { display:flex; gap:5px; align-items:flex-start; max-width:100%; box-sizing:border-box; font-size:.72rem; line-height:1.28; text-decoration:none; color:var(--gasf-text); padding:2px 4px; border-radius:5px; transition:transform .13s ease, box-shadow .13s ease, background-color .13s ease; }
+.gasf-chip__icon { flex:none; font-size:.92em; line-height:1.35; }
+.gasf-chip__text { min-width:0; overflow-wrap:anywhere; }
+.gasf-chip:hover, .gasf-chip:focus-visible { background:#fff; transform:translateX(2px); box-shadow:0 3px 12px rgba(0,0,0,.18); outline:none; position:relative; z-index:3; }
+.gasf-chip--cancelled .gasf-chip__text { text-decoration:line-through; opacity:.7; }
+.gasf-chip--postponed .gasf-chip__icon { filter:grayscale(.4); }
 .gasf-more { background:none; border:0; color:var(--gasf-accent); font-size:.72rem; cursor:pointer; padding:2px 0; transition:transform .12s ease; }
 .gasf-more:hover { transform:translateX(2px); }
 

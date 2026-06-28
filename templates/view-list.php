@@ -33,7 +33,7 @@ $groups = Calendar::group_by_day( $events );
 						<img loading="lazy" src="<?php echo esc_url( $e->cover_url( 'medium' ) ); ?>" alt="">
 					</a>
 					<div class="gasf-row__body">
-						<a class="gasf-row__title" href="<?php echo esc_url( $e->permalink() ); ?>"><?php echo esc_html( $e->title() ); ?></a>
+						<a class="gasf-row__title" href="<?php echo esc_url( $e->permalink() ); ?>"><span aria-hidden="true"><?php echo esc_html( $e->icon() ); ?></span> <?php echo esc_html( $e->title() ); ?></a>
 						<p class="gasf-row__meta">
 							<?php if ( $e->is_all_day() || $e->hide_time() ) : ?>
 								<?php esc_html_e( 'All day', 'gasf-events' ); ?>

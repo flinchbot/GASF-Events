@@ -42,6 +42,40 @@ final class Event {
 		return html_entity_decode( get_the_title( $this->post ), ENT_QUOTES, 'UTF-8' );
 	}
 
+	/**
+	 * A context emoji chosen from the title (soccer ball for watch parties, a
+	 * card for Euchre, a beer for Biergarten, …). Keyword order matters: more
+	 * specific terms first. Filterable so the club can tune it without code.
+	 */
+	public function icon(): string {
+		$t = mb_strtolower( $this->title() . ' ' . wp_strip_all_tags( $this->description() ) );
+		$map = [
+			'euchre' => '🃏',
+			'oktoberfest' => '🍻', 'feierabend' => '🍻', 'stammtisch' => '🍻',
+			'biergarten' => '🍺', 'bier ' => '🍺',
+			'world cup' => '⚽', 'watch party' => '⚽', 'bundesliga' => '⚽', 'bayern' => '⚽', 'soccer' => '⚽', 'fußball' => '⚽', ' v ' => '⚽',
+			'dinner' => '🍽️', 'restaurant' => '🍽️', 'schnitzel' => '🍽️',
+			'crafting' => '🧵', 'craft' => '🧵', 'knit' => '🧵',
+			'cleanup' => '🧹', 'clean up' => '🧹', 'clean-up' => '🧹',
+			'broadway' => '🎭', 'theatre' => '🎭', 'theater' => '🎭', 'gala' => '🎭',
+			'concert' => '🎵', 'music' => '🎵', 'band' => '🎵',
+			'dance' => '💃', 'ball' => '💃', 'tanz' => '💃',
+			'krampus' => '😈',
+			'weihnacht' => '🎄', 'christmas' => '🎄', 'advent' => '🎄',
+			'wine' => '🍷', 'wein' => '🍷',
+			'breakfast' => '🍳', 'brunch' => '🍳', 'pancake' => '🍳',
+			'picnic' => '🧺', 'bbq' => '🍖', 'grill' => '🍖',
+			'meeting' => '📋', 'verein' => '📋', 'board' => '📋',
+			'deutsch' => '🇩🇪', 'german night' => '🇩🇪',
+		];
+		foreach ( $map as $kw => $emoji ) {
+			if ( false !== mb_strpos( $t, $kw ) ) {
+				return apply_filters( 'gasf_events_icon', $emoji, $kw, $this );
+			}
+		}
+		return apply_filters( 'gasf_events_icon', '📅', '', $this );
+	}
+
 	public function description(): string {
 		return (string) $this->post->post_content;
 	}

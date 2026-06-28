@@ -47,8 +47,8 @@ $render_chip = static function ( Event $e ) {
 		data-img="<?php echo esc_url( $e->cover_url( 'medium' ) ); ?>"
 		data-excerpt="<?php echo esc_attr( $excerpt ); ?>"
 		@mouseenter="show($event)" @mouseleave="hide()" @focus="show($event)" @blur="hide()">
-		<?php if ( $show_time ) : ?><b><?php echo esc_html( wp_date( $tf, $e->start_ts() ) ); ?></b> <?php endif; ?>
-		<?php echo esc_html( $e->title() ); ?>
+		<span class="gasf-chip__icon" aria-hidden="true"><?php echo esc_html( $e->icon() ); ?></span>
+		<span class="gasf-chip__text"><?php if ( $show_time ) : ?><b><?php echo esc_html( wp_date( $tf, $e->start_ts() ) ); ?></b> <?php endif; ?><?php echo esc_html( $e->title() ); ?></span>
 	</a>
 	<?php
 };
