@@ -32,6 +32,8 @@ final class Shortcodes {
 				return $this->render( 'view-list', [ 'events' => Calendar::upcoming( (int) ( $atts['limit'] ?: 30 ) ) ] );
 			case 'tile':
 				return $this->render( 'view-tile', [ 'events' => Calendar::upcoming( (int) ( $atts['limit'] ?: 20 ) ) ] );
+			case 'home': // compact upcoming agenda for the front page (matches old MEC 12976).
+				return $this->render( 'view-home', [ 'events' => Calendar::upcoming( (int) ( $atts['limit'] ?: 5 ) ) ] );
 			case 'month':
 			default:
 				return $this->render( 'view-month', $this->month_data( $atts['month'] ) );
