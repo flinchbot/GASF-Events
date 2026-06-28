@@ -49,12 +49,16 @@
 .gasf-cal ul.gasf-day__events { list-style:none; margin:5px 0 0; padding:0; display:flex; flex-direction:column; gap:2px; min-width:0; }
 .gasf-cal .gasf-day__events li { list-style:none; margin:0; padding:0; }
 .gasf-cal .gasf-day__events li::before, .gasf-cal .gasf-day__events li::marker { content:none !important; display:none !important; }
-.gasf-chip { display:flex; gap:5px; align-items:flex-start; max-width:100%; box-sizing:border-box; font-size:.72rem; line-height:1.28; text-decoration:none; padding:2px 4px; border-radius:5px; transition:transform .13s ease, box-shadow .13s ease, background-color .13s ease; }
+/* Each event chip gets a soft top→bottom gradient of its TYPE colour (Event::color)
+   + a colour left edge, so events in a day are easy to tell apart. Plain bg first
+   as a fallback for browsers without color-mix(); the left border colours regardless. */
+.gasf-chip { --e-color:#5a6b85; display:flex; gap:6px; align-items:flex-start; max-width:100%; box-sizing:border-box; font-size:.72rem; line-height:1.28; text-decoration:none; padding:3px 6px; border-radius:5px; border-left:3px solid var(--e-color); background:#f3f4f6; background:linear-gradient(180deg, color-mix(in srgb, var(--e-color) 7%, #fff), color-mix(in srgb, var(--e-color) 20%, #fff)); transition:transform .13s ease, box-shadow .13s ease, filter .13s ease; }
 .gasf-chip__icon { flex:none; font-size:.92em; line-height:1.35; }
 /* Explicit color on the text span so the theme's a:hover can't recolor it. */
 .gasf-chip__text { min-width:0; overflow-wrap:anywhere; color:var(--gasf-text); }
 .gasf-chip__text b { color:var(--gasf-text); font-weight:700; }
-.gasf-chip:hover, .gasf-chip:focus-visible { background:#fff; transform:translateX(2px); box-shadow:0 3px 12px rgba(0,0,0,.18); outline:none; position:relative; z-index:3; }
+.gasf-chip:hover, .gasf-chip:focus-visible { transform:translateX(2px); box-shadow:0 4px 13px rgba(0,0,0,.22); filter:saturate(1.18); outline:none; position:relative; z-index:3; }
+.gasf-chip--cancelled { filter:grayscale(.55); }
 .gasf-chip--cancelled .gasf-chip__text { text-decoration:line-through; opacity:.7; }
 .gasf-chip--postponed .gasf-chip__icon { filter:grayscale(.4); }
 .gasf-more { background:none; border:0; color:var(--gasf-accent); font-size:.72rem; cursor:pointer; padding:2px 0; transition:transform .12s ease; }

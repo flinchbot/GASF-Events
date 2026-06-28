@@ -41,6 +41,7 @@ $render_chip = static function ( Event $e ) {
 	$excerpt = wp_trim_words( wp_strip_all_tags( $e->description() ), 32 );
 	?>
 	<a class="gasf-chip gasf-chip--<?php echo esc_attr( $e->status() ?: 'scheduled' ); ?>"
+		style="--e-color:<?php echo esc_attr( $e->color() ); ?>"
 		href="<?php echo esc_url( $e->permalink() ); ?>"
 		data-title="<?php echo esc_attr( $e->title() ); ?>"
 		data-time="<?php echo esc_attr( $time ); ?>"

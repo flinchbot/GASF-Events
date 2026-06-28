@@ -43,37 +43,50 @@ final class Event {
 	}
 
 	/**
-	 * A context emoji chosen from the title (soccer ball for watch parties, a
-	 * card for Euchre, a beer for Biergarten, …). Keyword order matters: more
-	 * specific terms first. Filterable so the club can tune it without code.
+	 * Event "type" derived from the title/description: an emoji + a colour, used
+	 * for the calendar icon and the soft colour behind each event. One keyword
+	 * map drives both so they never drift. Order matters (specific first).
+	 *
+	 * @return array{0:string,1:string} [ emoji, hex colour ]
 	 */
-	public function icon(): string {
+	private function type(): array {
 		$t = mb_strtolower( $this->title() . ' ' . wp_strip_all_tags( $this->description() ) );
 		$map = [
-			'euchre' => '🃏',
-			'oktoberfest' => '🍻', 'feierabend' => '🍻', 'stammtisch' => '🍻',
-			'biergarten' => '🍺', 'bier ' => '🍺',
-			'world cup' => '⚽', 'watch party' => '⚽', 'bundesliga' => '⚽', 'bayern' => '⚽', 'soccer' => '⚽', 'fußball' => '⚽', ' v ' => '⚽',
-			'dinner' => '🍽️', 'restaurant' => '🍽️', 'schnitzel' => '🍽️',
-			'crafting' => '🧵', 'craft' => '🧵', 'knit' => '🧵',
-			'cleanup' => '🧹', 'clean up' => '🧹', 'clean-up' => '🧹',
-			'broadway' => '🎭', 'theatre' => '🎭', 'theater' => '🎭', 'gala' => '🎭',
-			'concert' => '🎵', 'music' => '🎵', 'band' => '🎵',
-			'dance' => '💃', 'ball' => '💃', 'tanz' => '💃',
-			'krampus' => '😈',
-			'weihnacht' => '🎄', 'christmas' => '🎄', 'advent' => '🎄',
-			'wine' => '🍷', 'wein' => '🍷',
-			'breakfast' => '🍳', 'brunch' => '🍳', 'pancake' => '🍳',
-			'picnic' => '🧺', 'bbq' => '🍖', 'grill' => '🍖',
-			'meeting' => '📋', 'verein' => '📋', 'board' => '📋',
-			'deutsch' => '🇩🇪', 'german night' => '🇩🇪',
+			'euchre'       => [ '🃏', '#b22222' ],
+			'oktoberfest'  => [ '🍻', '#c9831f' ], 'feierabend' => [ '🍻', '#c9831f' ], 'stammtisch' => [ '🍻', '#c9831f' ],
+			'biergarten'   => [ '🍺', '#d4a017' ], 'bier '      => [ '🍺', '#d4a017' ],
+			'world cup'    => [ '⚽', '#1e5fad' ], 'watch party' => [ '⚽', '#1e5fad' ], 'bundesliga' => [ '⚽', '#1e5fad' ],
+			'bayern'       => [ '⚽', '#1e5fad' ], 'soccer'      => [ '⚽', '#1e5fad' ], 'fußball'    => [ '⚽', '#1e5fad' ], ' v ' => [ '⚽', '#1e5fad' ],
+			'dinner'       => [ '🍽️', '#6b6b6b' ], 'restaurant' => [ '🍽️', '#6b6b6b' ], 'schnitzel'  => [ '🍽️', '#6b6b6b' ],
+			'crafting'     => [ '🧵', '#7a5cae' ], 'craft'       => [ '🧵', '#7a5cae' ], 'knit'       => [ '🧵', '#7a5cae' ],
+			'cleanup'      => [ '🧹', '#3a7d44' ], 'clean up'    => [ '🧹', '#3a7d44' ], 'clean-up'   => [ '🧹', '#3a7d44' ],
+			'broadway'     => [ '🎭', '#9c3587' ], 'theatre'     => [ '🎭', '#9c3587' ], 'theater'    => [ '🎭', '#9c3587' ], 'gala' => [ '🎭', '#9c3587' ],
+			'concert'      => [ '🎵', '#4a4ab0' ], 'music'       => [ '🎵', '#4a4ab0' ], 'band'       => [ '🎵', '#4a4ab0' ],
+			'dance'        => [ '💃', '#c0398b' ], 'ball'        => [ '💃', '#c0398b' ], 'tanz'       => [ '💃', '#c0398b' ],
+			'krampus'      => [ '😈', '#7a1f1f' ],
+			'weihnacht'    => [ '🎄', '#2f7d4f' ], 'christmas'   => [ '🎄', '#2f7d4f' ], 'advent'     => [ '🎄', '#2f7d4f' ],
+			'wine'         => [ '🍷', '#8a2649' ], 'wein'        => [ '🍷', '#8a2649' ],
+			'breakfast'    => [ '🍳', '#c47f1a' ], 'brunch'      => [ '🍳', '#c47f1a' ], 'pancake'    => [ '🍳', '#c47f1a' ],
+			'picnic'       => [ '🧺', '#5f7d2f' ], 'bbq'         => [ '🍖', '#a14620' ], 'grill'      => [ '🍖', '#a14620' ],
+			'meeting'      => [ '📋', '#455a78' ], 'verein'      => [ '📋', '#455a78' ], 'board'      => [ '📋', '#455a78' ],
+			'deutsch'      => [ '🇩🇪', '#1a3d7c' ], 'german night' => [ '🇩🇪', '#1a3d7c' ],
 		];
-		foreach ( $map as $kw => $emoji ) {
+		foreach ( $map as $kw => $pair ) {
 			if ( false !== mb_strpos( $t, $kw ) ) {
-				return apply_filters( 'gasf_events_icon', $emoji, $kw, $this );
+				return $pair;
 			}
 		}
-		return apply_filters( 'gasf_events_icon', '📅', '', $this );
+		return [ '📅', '#5a6b85' ]; // default
+	}
+
+	/** Context emoji for the event (filterable). */
+	public function icon(): string {
+		return (string) apply_filters( 'gasf_events_icon', $this->type()[0], $this );
+	}
+
+	/** Type colour (hex) shown softly behind the event chip (filterable). */
+	public function color(): string {
+		return (string) apply_filters( 'gasf_events_color', $this->type()[1], $this );
 	}
 
 	public function description(): string {
