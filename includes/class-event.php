@@ -211,11 +211,26 @@ final class Event {
 
 	/* ---- Syndication / stats ------------------------------------------ */
 
+	/** Per-destination publish state: [ '<dest>' => {id,url,status,synced_at,error} ]. */
+	public function published(): array {
+		$p = $this->meta( Meta::PUBLISHED );
+		return is_array( $p ) ? $p : [];
+	}
+
+	public function published_to( string $dest ): array {
+		$p = $this->published();
+		return is_array( $p[ $dest ] ?? null ) ? $p[ $dest ] : [];
+	}
+
 	public function eventbrite_url(): string {
-		return (string) $this->meta( Meta::EB_URL );
+		return (string) ( $this->published_to( 'eventbrite' )['url'] ?? '' );
 	}
 
 	public function views(): int {
 		return (int) $this->meta( Meta::VIEWS );
+	}
+
+	public function views_kiosk(): int {
+		return (int) $this->meta( Meta::VIEWS_KIOSK );
 	}
 }

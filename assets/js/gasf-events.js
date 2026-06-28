@@ -76,4 +76,14 @@
 	} else {
 		document.addEventListener( 'DOMContentLoaded', function () { renderQR( document ); } );
 	}
+
+	/* ---- View-count beacon (single event pages) ---- */
+	if ( window.GASF_VIEW && window.GASF_VIEW.id && navigator.sendBeacon ) {
+		try {
+			var fd = new FormData();
+			fd.append( 'id', window.GASF_VIEW.id );
+			fd.append( 'ctx', window.GASF_VIEW.ctx || 'web' );
+			navigator.sendBeacon( window.GASF_VIEW.url, fd );
+		} catch ( e ) { /* ignore */ }
+	}
 } )();

@@ -60,14 +60,16 @@ final class Meta {
 	/** Hard cap on generated occurrences per series (runaway guard). */
 	const REPEAT_MAX   = 104;
 
-	// Eventbrite mirror.
-	const EB_ID        = '_gasf_eventbrite_id';
-	const EB_URL       = '_gasf_eventbrite_url';
-	const EB_STATUS    = '_gasf_eventbrite_status';     // '' | published | error
-	const EB_SYNCED_AT = '_gasf_eventbrite_synced_at';
+	// Outbound publishing — generic, destination-agnostic (Eventbrite is the
+	// first; more can register). Per-event state keyed by destination:
+	// _gasf_published = [ '<dest>' => { id, url, status, synced_at, error } ].
+	const PUBLISHED       = '_gasf_published';
+	const PUBLISH_INTENT  = '_gasf_publish_intent'; // [ dest keys ] pending publish
 
 	// Stats.
-	const VIEWS = '_gasf_views'; // int
+	const VIEWS       = '_gasf_views';        // int (total)
+	const VIEWS_KIOSK = '_gasf_views_kiosk';  // int (kiosk taps subset)
+	const VIEWS_DAILY = '_gasf_views_daily';  // [ Ymd => count ] (rolling)
 
 	/** Allowed event statuses. */
 	const STATUSES = [ '', 'cancelled', 'postponed', 'sold_out', 'online_only' ];
@@ -113,7 +115,6 @@ final class Meta {
 			self::MORE_INFO_URL, self::MORE_INFO_TITLE, self::SOURCE, self::FB_EVENT_ID,
 			self::FB_ACCOUNT, self::FB_COVER_ID, self::SERIES_ID, self::SERIES_ROLE,
 			self::REPEAT, self::REPEAT_UNTIL,
-			self::EB_ID, self::EB_URL, self::EB_STATUS,
 		];
 		foreach ( $string_keys as $key ) {
 			register_post_meta( GASF_EVENTS_CPT, $key, [
@@ -125,7 +126,7 @@ final class Meta {
 			] );
 		}
 
-		$int_keys = [ self::START_TS, self::END_TS, self::FB_MISSING, self::VIEWS, self::EB_SYNCED_AT, self::REPEAT_COUNT ];
+		$int_keys = [ self::START_TS, self::END_TS, self::FB_MISSING, self::VIEWS, self::VIEWS_KIOSK, self::REPEAT_COUNT ];
 		foreach ( $int_keys as $key ) {
 			register_post_meta( GASF_EVENTS_CPT, $key, [
 				'type'              => 'integer',

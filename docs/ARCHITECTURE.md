@@ -349,13 +349,15 @@ This makes the kiosk's event sync — and any external subscriber — a first-cl
 - **Google Calendar** sync becomes a **second outbound destination** in the same in-core syndication component (the `26-calendar-sync.php` service-account/JWT logic moves in, reading native events directly). It's parked/OFF, so it lands in a later phase; retired as an MU hack either way.
 - **Exports** (CSV / ICS Bulk Actions) reuse the §7 ICS generator — no external service, just a download.
 
-#### 7.2 Three-way sync: Facebook → WordPress → Eventbrite (everything stays in sync)
-Once an event is published to Eventbrite, the listing is a **mirror of WordPress**, kept current automatically:
-- **Propagation:** any change to a `gasf_event` that has a `_gasf_eventbrite_id` queues an **Eventbrite update** — whether the change came from the **FB importer** (FB edited the event → WP updated, §6) or a **manual WP edit**. So the chain is **FB → WP → EB**, end to end, no manual re-publish needed.
-- **Hook point:** a single `save_post` / post-sync trigger enqueues the EB update (debounced), so FB-driven and human-driven edits use one path.
-- **Deletion / cancellation:** event trashed or drafted → linked EB listing **unpublished**; `_gasf_status = cancelled` → EB listing **cancelled**. (FB-vanished → WP draft → EB unpublish flows automatically.)
-- **Pinned events (`_gasf_sync_locked`):** the pin blocks **FB → WP** (you own the content), but **WP → EB still mirrors** whatever WP currently holds — EB always reflects WP.
-- **Caveat (surfaced, not silent):** Eventbrite restricts editing a listing once tickets have sold; the publisher reports that state in `_gasf_eventbrite_status = error` + the All Events column rather than failing quietly. Rare for this club.
+#### 7.2 Outbound sync: GASF Calendar → any destination (built P7, destination-agnostic)
+**Generalized (2026-06-28 per user): the source of an event is irrelevant.** Publishing is **`gasf_event` → outbound destinations**, where any event (manual, Facebook, ICS, …) can be published, and destinations are **pluggable** — Eventbrite is the first; others register via the `gasf_events_destinations` filter.
+- **Registry:** `interface Publish_Destination` + `Destinations::all()` (filterable). Per-event state is generic: `_gasf_published[<dest>] = { id, url, status, synced_at, error }` (no EB-hardcoded keys).
+- **Mark → reconcile:** the "Publish to <dest>" bulk action marks intent; `Syndication::reconcile()` pushes and records state.
+- **Stay-in-sync:** thereafter **any** save of that event re-pushes to every destination it's published to — and because the **feed importers write via `Event_Ingest` → `wp_insert_post`**, a Facebook/ICS update fires the same `save_post_gasf_event` hook a manual edit does. One path, debounced on `shutdown`. So an FB edit, an ICS refresh, or a human edit all flow outward identically.
+- **Deletion / cancellation:** trashed/drafted/`cancelled` → the listing is **removed/unpublished** at each destination (`reconcile()`'s `is_public` check).
+- **Pinned events (`_gasf_sync_locked`):** the pin blocks the **inbound** feed→WP overwrite (you own the content), but **WP → destinations still mirror** whatever WP holds.
+- **Caveat (surfaced, not silent):** Eventbrite restricts editing once tickets have sold; the push records `status = error` + message in `_gasf_published` and the All Events **Published** column shows a ⚠ rather than failing quietly.
+- **Eventbrite v1 scope:** maps name + start/end (UTC) + a free ticket, then publishes; rich description (structured content) + venue creation are follow-ons.
 
 ---
 

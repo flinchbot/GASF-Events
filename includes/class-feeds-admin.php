@@ -22,6 +22,23 @@ final class Feeds_Admin {
 		add_action( 'admin_post_gasf_feeds_toggle', [ $this, 'toggle_feed' ] );
 		add_action( 'admin_post_gasf_feeds_import_mec', [ $this, 'import_mec' ] );
 		add_action( 'admin_post_gasf_feeds_run', [ $this, 'run' ] );
+		add_action( 'admin_post_gasf_feeds_eventbrite', [ $this, 'save_eventbrite' ] );
+	}
+
+	public function save_eventbrite(): void {
+		$this->guard( 'gasf_feeds_eb' );
+		$cur   = Eventbrite::config();
+		$token = trim( (string) wp_unslash( $_POST['token'] ?? '' ) );
+		// Keep the stored token if the field was left as the masked preview / blank.
+		if ( '' === $token || false !== strpos( $token, '…' ) ) {
+			$token = (string) $cur['token'];
+		}
+		update_option( Eventbrite::OPTION, [
+			'token'           => $token,
+			'organization_id' => sanitize_text_field( wp_unslash( $_POST['organization_id'] ?? '' ) ),
+			'enabled'         => ! empty( $_POST['enabled'] ),
+		], false );
+		$this->back();
 	}
 
 	public function menu(): void {
@@ -240,6 +257,21 @@ final class Feeds_Admin {
 			</form>
 
 			<form method="post" action="<?php echo $u; ?>" style="margin-top:8px;"><?php wp_nonce_field( 'gasf_feeds_edit' ); ?><input type="hidden" name="action" value="gasf_feeds_import_mec"><?php submit_button( __( 'Import feeds from MEC + Calendar Sync', 'gasf-events' ), 'link', '', false ); ?></form>
+
+			<h2><?php esc_html_e( 'Publishing destinations', 'gasf-events' ); ?></h2>
+			<p class="description"><?php esc_html_e( 'Outbound targets that the “Publish to …” bulk action on All Events can send to. Any event (manual, Facebook, or ICS) can be published; once published it stays in sync on every edit.', 'gasf-events' ); ?></p>
+			<?php $eb = Eventbrite::config(); ?>
+			<form method="post" action="<?php echo $u; ?>">
+				<?php wp_nonce_field( 'gasf_feeds_eb' ); ?>
+				<input type="hidden" name="action" value="gasf_feeds_eventbrite">
+				<h3 style="margin-bottom:4px;">Eventbrite</h3>
+				<p>
+					<label><input type="checkbox" name="enabled" value="1" <?php checked( ! empty( $eb['enabled'] ) ); ?>> <?php esc_html_e( 'Enabled', 'gasf-events' ); ?></label><br>
+					<input type="text" name="organization_id" value="<?php echo esc_attr( $eb['organization_id'] ); ?>" placeholder="<?php esc_attr_e( 'Organization ID', 'gasf-events' ); ?>"><br>
+					<input type="text" name="token" value="<?php echo esc_attr( $eb['token'] ? substr( $eb['token'], 0, 4 ) . '…' : '' ); ?>" placeholder="<?php esc_attr_e( 'Private token (leave masked value to keep)', 'gasf-events' ); ?>" size="40">
+				</p>
+				<?php submit_button( __( 'Save Eventbrite', 'gasf-events' ), 'secondary', '', false ); ?>
+			</form>
 
 			<?php if ( $log ) : ?>
 				<h2><?php esc_html_e( 'Recent runs', 'gasf-events' ); ?></h2>

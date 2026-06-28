@@ -38,7 +38,7 @@ final class Admin_List {
 				$out['gasf_status']     = __( 'Status', 'gasf-events' );
 				$out['gasf_source']     = __( 'Source', 'gasf-events' );
 				$out['gasf_views']      = __( 'Views', 'gasf-events' );
-				$out['gasf_eb']         = __( 'Eventbrite', 'gasf-events' );
+				$out['gasf_eb']         = __( 'Published', 'gasf-events' );
 			}
 			$out[ $key ] = $label;
 		}
@@ -114,10 +114,24 @@ final class Admin_List {
 				break;
 
 			case 'gasf_eb':
-				$url = $event->eventbrite_url();
-				echo $url
-					? '<a href="' . esc_url( $url ) . '" target="_blank" rel="noopener">' . esc_html__( 'Published', 'gasf-events' ) . '</a>'
-					: '<span style="color:#ccc;">—</span>';
+				$pub = $event->published();
+				if ( ! $pub ) {
+					echo '<span style="color:#ccc;">—</span>';
+					break;
+				}
+				$bits = [];
+				foreach ( $pub as $dkey => $state ) {
+					$dest  = Destinations::get( $dkey );
+					$label = $dest ? $dest->label() : ucfirst( $dkey );
+					if ( 'error' === ( $state['status'] ?? '' ) ) {
+						$bits[] = '<span style="color:#b32d2e;" title="' . esc_attr( (string) ( $state['error'] ?? '' ) ) . '">' . esc_html( $label ) . ' ⚠</span>';
+					} elseif ( ! empty( $state['url'] ) ) {
+						$bits[] = '<a href="' . esc_url( $state['url'] ) . '" target="_blank" rel="noopener">' . esc_html( $label ) . '</a>';
+					} else {
+						$bits[] = esc_html( $label );
+					}
+				}
+				echo wp_kses_post( implode( ', ', $bits ) );
 				break;
 		}
 	}

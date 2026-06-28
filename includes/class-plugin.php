@@ -52,10 +52,14 @@ final class Plugin {
 		require_once $dir . 'class-event-ingest.php';
 		require_once $dir . 'class-google-calendar.php';
 		require_once $dir . 'class-feeds.php';
+		require_once $dir . 'class-syndication.php';  // interface + registry (before destinations)
+		require_once $dir . 'class-eventbrite.php';
+		require_once $dir . 'class-stats.php';
 		if ( is_admin() ) {
 			require_once $dir . 'class-meta-box.php';
 			require_once $dir . 'class-admin-list.php';
 			require_once $dir . 'class-feeds-admin.php';
+			require_once $dir . 'class-bulk-actions.php';
 		}
 		if ( defined( 'WP_CLI' ) && WP_CLI ) {
 			require_once $dir . 'class-cli.php';
@@ -83,12 +87,15 @@ final class Plugin {
 		( new Single() )->register_hooks();
 		( new Print_View() )->register_hooks();
 		( new Feeds() )->register_hooks();
+		( new Syndication() )->register_hooks();
+		( new Stats() )->register_hooks();
 
 		if ( is_admin() ) {
 			( new Meta_Box() )->register_hooks();
 			( new Admin_List() )->register_hooks();
 			( new Series() )->register_hooks();
 			( new Feeds_Admin() )->register_hooks();
+			( new Bulk_Actions() )->register_hooks();
 		}
 
 		load_plugin_textdomain( 'gasf-events', false, dirname( plugin_basename( GASF_EVENTS_FILE ) ) . '/languages' );
