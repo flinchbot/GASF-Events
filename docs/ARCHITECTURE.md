@@ -196,7 +196,7 @@ Today Module H always wins: it rewrites title/description/date/time/cover on eve
 ### 4.7 Recurring events as a lightweight **series** (big win — replaces hand-creating each occurrence)
 The club currently hand-creates every Euchre night, Crafting session, Dinner Night, etc. one at a time. We make recurrence first-class **without** reintroducing MEC's recurrence engine — the trick: events stay **materialized as flat individual posts** (so the grid, single page, SEO, and feeds stay dead simple), but they're **grouped into a series** for management.
 
-**Model:** a series shares a `_gasf_series_id`; a hidden/`master` post holds the recurrence template (pattern + image + description), and each occurrence is a normal `gasf_event` (`_gasf_series_role = occurrence`). Standalone events are `single`.
+**Model (as built in P2):** a series shares a `_gasf_series_id`. The **first event doubles as the series anchor** (`_gasf_series_role = master`) — it is a real, displayed event that also carries the recurrence rule (`_gasf_repeat` / `_gasf_repeat_until` / `_gasf_repeat_count`); every later date is a flat `gasf_event` with `_gasf_series_role = occurrence`. Standalone events are `single`. **No hidden template post** (simpler than the original sketch; every member is a real, displayable event, which keeps the "flat-but-grouped" promise intact). FB recurring events (P5) reuse the same `_gasf_series_id` with all members as `occurrence` (their template lives on Facebook).
 
 **Create (manual):** the Event editor gains a **"Repeats"** panel — `weekly / every-2-weeks / monthly-by-weekday`, an interval, and an end (until-date or count). On save it **generates the occurrences as flat events**. No rrule-on-read; the dates are real rows.
 

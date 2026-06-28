@@ -36,6 +36,8 @@ final class Plugin {
 		require_once $dir . 'class-event.php';
 		require_once $dir . 'class-post-type.php';
 		require_once $dir . 'class-settings.php';
+		require_once $dir . 'class-recurrence.php';
+		require_once $dir . 'class-series.php';
 		if ( is_admin() ) {
 			require_once $dir . 'class-meta-box.php';
 			require_once $dir . 'class-admin-list.php';
@@ -59,6 +61,7 @@ final class Plugin {
 		if ( is_admin() ) {
 			( new Meta_Box() )->register_hooks();
 			( new Admin_List() )->register_hooks();
+			( new Series() )->register_hooks();
 		}
 
 		load_plugin_textdomain( 'gasf-events', false, dirname( plugin_basename( GASF_EVENTS_FILE ) ) . '/languages' );

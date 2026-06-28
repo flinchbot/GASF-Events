@@ -48,6 +48,14 @@ final class Meta {
 	// Series (recurring).
 	const SERIES_ID   = '_gasf_series_id';   // string
 	const SERIES_ROLE = '_gasf_series_role'; // single | master | occurrence
+	const REPEAT       = '_gasf_repeat';       // '' | weekly | biweekly | monthly (on the master)
+	const REPEAT_UNTIL = '_gasf_repeat_until'; // Y-m-d (ends-on) — mutually exclusive with count
+	const REPEAT_COUNT = '_gasf_repeat_count'; // int (number of occurrences incl. first)
+
+	/** Allowed repeat frequencies. */
+	const REPEATS      = [ '', 'weekly', 'biweekly', 'monthly' ];
+	/** Hard cap on generated occurrences per series (runaway guard). */
+	const REPEAT_MAX   = 104;
 
 	// Eventbrite mirror.
 	const EB_ID        = '_gasf_eventbrite_id';
@@ -101,6 +109,7 @@ final class Meta {
 			self::START, self::END, self::STATUS, self::STATUS_REASON, self::ONLINE_LINK,
 			self::MORE_INFO_URL, self::MORE_INFO_TITLE, self::SOURCE, self::FB_EVENT_ID,
 			self::FB_ACCOUNT, self::FB_COVER_ID, self::SERIES_ID, self::SERIES_ROLE,
+			self::REPEAT, self::REPEAT_UNTIL,
 			self::EB_ID, self::EB_URL, self::EB_STATUS,
 		];
 		foreach ( $string_keys as $key ) {
@@ -113,7 +122,7 @@ final class Meta {
 			] );
 		}
 
-		$int_keys = [ self::START_TS, self::END_TS, self::FB_MISSING, self::VIEWS, self::EB_SYNCED_AT ];
+		$int_keys = [ self::START_TS, self::END_TS, self::FB_MISSING, self::VIEWS, self::EB_SYNCED_AT, self::REPEAT_COUNT ];
 		foreach ( $int_keys as $key ) {
 			register_post_meta( GASF_EVENTS_CPT, $key, [
 				'type'              => 'integer',

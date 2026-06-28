@@ -80,9 +80,15 @@ final class Admin_List {
 				break;
 
 			case 'gasf_recurring':
-				echo $event->is_recurring()
-					? '<span title="' . esc_attr__( 'Part of a recurring series', 'gasf-events' ) . '" style="color:#46810b;font-size:18px;">&#10003;</span>'
-					: '<span style="color:#ccc;">—</span>';
+				if ( $event->is_recurring() && $event->series_id() ) {
+					$url = add_query_arg(
+						[ 'post_type' => GASF_EVENTS_CPT, 'gasf_series' => $event->series_id() ],
+						admin_url( 'edit.php' )
+					);
+					echo '<a href="' . esc_url( $url ) . '" title="' . esc_attr__( 'Show all events in this series', 'gasf-events' ) . '" style="color:#46810b;font-size:18px;text-decoration:none;">&#10003;</a>';
+				} else {
+					echo '<span style="color:#ccc;">—</span>';
+				}
 				break;
 
 			case 'gasf_status':
@@ -186,6 +192,16 @@ final class Admin_List {
 			$meta_query[] = [ 'key' => Meta::FB_EVENT_ID, 'compare' => 'NOT EXISTS' ];
 		} elseif ( 'facebook' === $source ) {
 			$meta_query[] = [ 'key' => Meta::FB_EVENT_ID, 'compare' => 'EXISTS' ];
+		}
+
+		// "Show all events in this series" (from the Recurring-column link).
+		$series = isset( $_GET['gasf_series'] ) ? sanitize_text_field( wp_unslash( $_GET['gasf_series'] ) ) : '';
+		if ( $series ) {
+			$meta_query[]  = [ 'key' => Meta::SERIES_ID, 'value' => $series ];
+			// Within a series, order by the actual event date.
+			$q->set( 'meta_key', Meta::START_TS );
+			$q->set( 'orderby', 'meta_value_num' );
+			$q->set( 'order', 'ASC' );
 		}
 
 		if ( $meta_query ) {

@@ -54,6 +54,13 @@ final class Meta_Box {
 		$fb_id     = (string) $g( Meta::FB_EVENT_ID );
 		$locked    = (bool) $g( Meta::SYNC_LOCKED );
 		$venue_ov  = (array) ( $g( Meta::VENUE_OVERRIDE ) ?: [] );
+
+		$role      = (string) $g( Meta::SERIES_ROLE ) ?: 'single';
+		$repeat    = (string) $g( Meta::REPEAT );
+		$rep_until = (string) $g( Meta::REPEAT_UNTIL );
+		$rep_count = (int) $g( Meta::REPEAT_COUNT );
+		$series_id = (string) $g( Meta::SERIES_ID );
+		$series_n  = $series_id ? Series::count( $series_id ) : 0;
 		?>
 		<style>
 			.gasf-mb label.row { display:block; font-weight:600; margin:14px 0 4px; }
@@ -108,6 +115,45 @@ final class Meta_Box {
 				<input type="text" name="gasf_venue[zip]" placeholder="<?php esc_attr_e( 'ZIP', 'gasf-events' ); ?>" size="10" value="<?php echo esc_attr( $venue_ov['zip'] ?? '' ); ?>">
 			</fieldset>
 
+			<?php if ( 'occurrence' === $role ) : ?>
+				<fieldset class="adv">
+					<label class="row" style="margin-top:0;"><?php esc_html_e( 'Recurring event', 'gasf-events' ); ?></label>
+					<p style="margin:4px 0;">
+						<?php esc_html_e( 'This is one date in a recurring series. Editing here changes only this occurrence.', 'gasf-events' ); ?>
+						<?php
+						$siblings = $series_id ? Series::members( $series_id, 'master' ) : [];
+						if ( $siblings ) :
+							?>
+							<a href="<?php echo esc_url( get_edit_post_link( $siblings[0] ) ); ?>"><?php esc_html_e( 'Edit the series', 'gasf-events' ); ?></a>
+						<?php endif; ?>
+					</p>
+				</fieldset>
+			<?php else : ?>
+				<fieldset class="adv">
+					<label class="row" style="margin-top:0;" for="gasf_repeat"><?php esc_html_e( 'Repeats', 'gasf-events' ); ?></label>
+					<select name="gasf_repeat" id="gasf_repeat">
+						<option value="" <?php selected( $repeat, '' ); ?>><?php esc_html_e( 'Does not repeat', 'gasf-events' ); ?></option>
+						<option value="weekly" <?php selected( $repeat, 'weekly' ); ?>><?php esc_html_e( 'Weekly', 'gasf-events' ); ?></option>
+						<option value="biweekly" <?php selected( $repeat, 'biweekly' ); ?>><?php esc_html_e( 'Every 2 weeks', 'gasf-events' ); ?></option>
+						<option value="monthly" <?php selected( $repeat, 'monthly' ); ?>><?php esc_html_e( 'Monthly (same weekday)', 'gasf-events' ); ?></option>
+					</select>
+					<span class="gasf-rep-end" style="<?php echo $repeat ? '' : 'display:none;'; ?>">
+						&nbsp;<?php esc_html_e( 'until', 'gasf-events' ); ?>
+						<input type="date" name="gasf_repeat_until" value="<?php echo esc_attr( $rep_until ); ?>">
+						<?php esc_html_e( 'or', 'gasf-events' ); ?>
+						<input type="number" min="2" max="<?php echo esc_attr( Meta::REPEAT_MAX ); ?>" name="gasf_repeat_count" value="<?php echo esc_attr( $rep_count ?: '' ); ?>" placeholder="<?php esc_attr_e( '# times', 'gasf-events' ); ?>" style="width:90px;">
+					</span>
+					<?php if ( 'master' === $role && $series_n > 1 ) : ?>
+						<p style="margin:8px 0 0;">
+							<label><input type="checkbox" name="gasf_apply_future" value="1"> <?php esc_html_e( 'Apply my changes to future occurrences in this series', 'gasf-events' ); ?></label>
+							<span style="color:#666;">(<?php echo esc_html( sprintf( /* translators: %d count */ __( '%d events in series', 'gasf-events' ), $series_n ) ); ?>)</span>
+						</p>
+					<?php else : ?>
+						<p class="description" style="margin:6px 0 0;"><?php esc_html_e( 'Saving will create the individual events for each date.', 'gasf-events' ); ?></p>
+					<?php endif; ?>
+				</fieldset>
+			<?php endif; ?>
+
 			<p style="margin-top:16px;">
 				<?php esc_html_e( 'Source:', 'gasf-events' ); ?>
 				<?php if ( 'facebook' === $source || $fb_id ) : ?>
@@ -127,6 +173,14 @@ final class Meta_Box {
 				} );
 			}
 			if ( cb ) { cb.addEventListener( 'change', toggle ); toggle(); }
+
+			var rep = document.getElementById( 'gasf_repeat' );
+			if ( rep ) {
+				rep.addEventListener( 'change', function () {
+					var end = document.querySelector( '.gasf-rep-end' );
+					if ( end ) { end.style.display = rep.value ? '' : 'none'; }
+				} );
+			}
 		} )();
 		</script>
 		<?php
@@ -198,6 +252,31 @@ final class Meta_Box {
 		// The FB sync pin (only meaningful for FB-sourced events).
 		if ( (string) get_post_meta( $post_id, Meta::FB_EVENT_ID, true ) ) {
 			update_post_meta( $post_id, Meta::SYNC_LOCKED, empty( $_POST['gasf_sync_locked'] ) ? 0 : 1 );
+		}
+
+		// Recurrence — only on a standalone/master event, never a generated occurrence,
+		// and never while we're mid-generation (guards against save_post recursion).
+		$role = (string) get_post_meta( $post_id, Meta::SERIES_ROLE, true );
+		if ( 'occurrence' !== $role && ! Series::is_generating() ) {
+			$repeat = sanitize_text_field( wp_unslash( $_POST['gasf_repeat'] ?? '' ) );
+			$repeat = in_array( $repeat, Meta::REPEATS, true ) ? $repeat : '';
+			if ( $repeat ) {
+				$until = sanitize_text_field( wp_unslash( $_POST['gasf_repeat_until'] ?? '' ) );
+				$count = (int) ( $_POST['gasf_repeat_count'] ?? 0 );
+				update_post_meta( $post_id, Meta::REPEAT, $repeat );
+				update_post_meta( $post_id, Meta::REPEAT_UNTIL, $until );
+				update_post_meta( $post_id, Meta::REPEAT_COUNT, $count );
+				Series::sync_from_master( $post_id, $repeat, $until, $count, ! empty( $_POST['gasf_apply_future'] ) );
+			} else {
+				// Repeat turned off: clear the rule. Existing occurrences are left intact
+				// (use the "Delete series" row action to remove them).
+				delete_post_meta( $post_id, Meta::REPEAT );
+				delete_post_meta( $post_id, Meta::REPEAT_UNTIL );
+				delete_post_meta( $post_id, Meta::REPEAT_COUNT );
+				if ( '' === $role ) {
+					update_post_meta( $post_id, Meta::SERIES_ROLE, 'single' );
+				}
+			}
 		}
 	}
 }
