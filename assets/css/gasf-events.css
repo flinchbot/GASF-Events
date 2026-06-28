@@ -106,7 +106,7 @@
 /* ---- Home agenda (matches the old MEC modern-list home block #12976) ----
    Teal text date + salmon event-name links; inherits the theme font. Tune the
    two colours here. */
-.gasf-home { --home-date:#2a9d8f; --home-link:#e07a5f; }
+.gasf-home { --home-date:#0f6e56; --home-link:#ed7470; }
 .gasf-home__item { display:flex; gap:16px; align-items:flex-start; padding:14px 2px; border-bottom:1px solid var(--gasf-border); }
 .gasf-home__item:last-child { border-bottom:0; }
 .gasf-home__date { flex:none; width:60px; text-align:center; text-decoration:none; line-height:1.05; padding-top:2px; }
