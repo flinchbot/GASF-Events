@@ -133,11 +133,14 @@
 	--gasf-home-ring:#ef9f27;        /* gold row-hover border + highlight */
 }
 /* Row reserves a 2px transparent border so the gold hover ring doesn't shift
-   layout; the bottom edge carries the divider colour until hovered. */
-.gasf-home__item { display:flex; gap:18px; align-items:flex-start; padding:10px 8px; border:2px solid transparent; border-bottom-color:var(--gasf-border); border-radius:var(--gasf-radius); transition:border-color .15s ease, background-color .15s ease, box-shadow .15s ease; }
-.gasf-home__item:last-child { border-bottom-color:transparent; }
+   layout; rows are separated by spacing + the hover highlight (no divider line).
+   position:relative anchors the whole-row stretched link below. */
+.gasf-home__item { position:relative; display:flex; gap:18px; align-items:flex-start; padding:10px 8px; border:2px solid transparent; border-radius:var(--gasf-radius); transition:border-color .15s ease, background-color .15s ease, box-shadow .15s ease; }
 .gasf-home__item:hover { border-color:var(--gasf-home-ring); background:rgba(239,159,39,.10); background:color-mix(in srgb, var(--gasf-home-ring) 12%, transparent); box-shadow:0 6px 18px rgba(0,0,0,.18); }
 .gasf-home__item:hover .gasf-home__title a { color:var(--gasf-home-link-hover); }
+/* Whole-row click: stretch the (real) title link across the entire row, so a
+   click anywhere opens the event while keyboard/right-click/new-tab still work. */
+.gasf-home__title a::after { content:""; position:absolute; inset:0; z-index:1; }
 .gasf-home__date { flex:none; width:104px; text-decoration:none; line-height:1.04; padding-top:2px; }
 .gasf-home__day { display:inline-block; font-size:2.9rem; font-weight:800; color:var(--gasf-home-date); }
 .gasf-home__mon { display:inline-block; margin-left:4px; font-size:.85rem; font-weight:700; font-style:italic; text-transform:uppercase; letter-spacing:.03em; color:var(--gasf-home-date); }
