@@ -29,6 +29,7 @@ $weekdays  = [ __( 'Sun', 'gasf-events' ), __( 'Mon', 'gasf-events' ), __( 'Tue'
 		<h2 class="gasf-cal__title" data-gasf-title><?php echo esc_html( $label ); ?></h2>
 		<a class="gasf-cal__nav" data-gasf-nav href="<?php echo esc_url( $next_url ); ?>" rel="next" aria-label="<?php esc_attr_e( 'Next month', 'gasf-events' ); ?>">&#8250;</a>
 		<a class="gasf-cal__print" href="<?php echo esc_url( $print_url ); ?>" target="_blank" rel="noopener"><?php esc_html_e( 'Print this month', 'gasf-events' ); ?></a>
+		<a class="gasf-cal__print" href="<?php echo esc_url( Add_To_Calendar::subscribe_url( true ) ); ?>" title="<?php esc_attr_e( 'Subscribe in your calendar app', 'gasf-events' ); ?>"><?php esc_html_e( 'Subscribe', 'gasf-events' ); ?></a>
 	</div>
 
 	<div class="gasf-grid" role="table" aria-label="<?php echo esc_attr( $label ); ?>">

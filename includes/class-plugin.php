@@ -55,6 +55,7 @@ final class Plugin {
 		require_once $dir . 'class-syndication.php';  // interface + registry (before destinations)
 		require_once $dir . 'class-eventbrite.php';
 		require_once $dir . 'class-stats.php';
+		require_once $dir . 'class-rest.php';
 		if ( is_admin() ) {
 			require_once $dir . 'class-meta-box.php';
 			require_once $dir . 'class-admin-list.php';
@@ -86,6 +87,7 @@ final class Plugin {
 		( new Shortcodes() )->register_hooks();
 		( new Single() )->register_hooks();
 		( new Print_View() )->register_hooks();
+		( new Rest() )->register_hooks();
 		( new Feeds() )->register_hooks();
 		( new Syndication() )->register_hooks();
 		( new Stats() )->register_hooks();

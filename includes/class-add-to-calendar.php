@@ -17,27 +17,55 @@ final class Add_To_Calendar {
 	public function register_hooks(): void {
 		add_action( 'init', [ $this, 'add_query_var' ] );
 		add_action( 'template_redirect', [ $this, 'maybe_serve_ics' ] );
+		add_action( 'init', [ $this, 'add_rewrite' ] );
 	}
 
 	public function add_query_var(): void {
 		add_rewrite_tag( '%gasf_ics%', '([^&]+)' );
 	}
 
-	/** Serve a single event's .ics when ?gasf_ics=event&event=<id>. */
+	/** Pretty subscribe URL: /<slug>/calendar.ics → ?gasf_ics=all. */
+	public function add_rewrite(): void {
+		add_rewrite_rule( '^' . GASF_EVENTS_REWRITE_SLUG . '/calendar\.ics$', 'index.php?gasf_ics=all', 'top' );
+	}
+
+	/**
+	 * Serve .ics:
+	 *   ?gasf_ics=event&event=<id>  → one event (add-to-calendar / Apple)
+	 *   ?gasf_ics=all               → the whole upcoming calendar (subscribable feed)
+	 */
 	public function maybe_serve_ics(): void {
-		if ( ( $_GET['gasf_ics'] ?? '' ) !== 'event' ) {
-			return;
-		}
-		$event = Event::get( (int) ( $_GET['event'] ?? 0 ) );
-		if ( ! $event ) {
-			status_header( 404 );
+		$mode = (string) ( get_query_var( 'gasf_ics' ) ?: ( $_GET['gasf_ics'] ?? '' ) );
+
+		if ( 'event' === $mode ) {
+			$event = Event::get( (int) ( $_GET['event'] ?? 0 ) );
+			if ( ! $event ) {
+				status_header( 404 );
+				exit;
+			}
+			nocache_headers();
+			header( 'Content-Type: text/calendar; charset=utf-8' );
+			header( 'Content-Disposition: attachment; filename="event-' . $event->id() . '.ics"' );
+			echo self::ics_document( [ $event ] ); // phpcs:ignore WordPress.Security.EscapeOutput
 			exit;
 		}
-		nocache_headers();
-		header( 'Content-Type: text/calendar; charset=utf-8' );
-		header( 'Content-Disposition: attachment; filename="event-' . $event->id() . '.ics"' );
-		echo self::ics_document( [ $event ] ); // phpcs:ignore WordPress.Security.EscapeOutput
-		exit;
+
+		if ( 'all' === $mode ) {
+			// Upcoming + a short grace window; subscribers re-poll.
+			$events = Calendar::upcoming( 500, time() - 7 * DAY_IN_SECONDS );
+			header( 'Content-Type: text/calendar; charset=utf-8' );
+			header( 'Content-Disposition: inline; filename="gasf-calendar.ics"' );
+			header( 'Cache-Control: public, max-age=900' );
+			header( 'X-WR-CALNAME: ' . get_bloginfo( 'name' ) . ' Events' );
+			echo self::ics_document( $events ); // phpcs:ignore WordPress.Security.EscapeOutput
+			exit;
+		}
+	}
+
+	/** The subscribable feed URL (https) and its webcal:// form. */
+	public static function subscribe_url( bool $webcal = false ): string {
+		$url = home_url( '/' . GASF_EVENTS_REWRITE_SLUG . '/calendar.ics' );
+		return $webcal ? preg_replace( '#^https?://#', 'webcal://', $url ) : $url;
 	}
 
 	/* ---- Provider links ----------------------------------------------- */
