@@ -1,8 +1,9 @@
 <?php
 /**
- * "Home" agenda view — a compact list of the next few upcoming events, laid out
- * like the old MEC modern-list home block (#12976): a coloured date block on the
- * left, title + time in the middle, a details button on the right.
+ * "Home" agenda view — a compact list of the next few upcoming events, styled to
+ * match the old MEC modern-list home block (#12976): a teal date on the left
+ * (big day number), a salmon event-name link, time/location below. No emoji,
+ * no button — the event name is the link. Inherits the theme font.
  *
  * @package GASF_Events
  * @var Event[] $events
@@ -18,23 +19,19 @@ if ( ! $events ) {
 }
 $tf = get_option( 'time_format' );
 ?>
-<?php
-// Alternate the original home-page teal / salmon accent per event.
-$accents = [ '#0f6e56', '#e07a5f' ];
-?>
 <div class="gasf-home">
-	<?php foreach ( $events as $i => $e ) :
+	<?php foreach ( $events as $e ) :
 		$s = $e->start();
 		?>
-		<article class="gasf-home__item" style="--e-color:<?php echo esc_attr( $accents[ $i % 2 ] ); ?>">
+		<article class="gasf-home__item">
 			<a class="gasf-home__date" href="<?php echo esc_url( $e->permalink() ); ?>" aria-hidden="true" tabindex="-1">
-				<span class="gasf-home__dow"><?php echo esc_html( $s ? wp_date( 'D', $e->start_ts() ) : '' ); ?></span>
 				<span class="gasf-home__day"><?php echo esc_html( $s ? wp_date( 'j', $e->start_ts() ) : '–' ); ?></span>
 				<span class="gasf-home__mon"><?php echo esc_html( $s ? wp_date( 'M', $e->start_ts() ) : '' ); ?></span>
+				<span class="gasf-home__dow"><?php echo esc_html( $s ? wp_date( 'D', $e->start_ts() ) : '' ); ?></span>
 			</a>
 			<div class="gasf-home__body">
 				<h4 class="gasf-home__title">
-					<a href="<?php echo esc_url( $e->permalink() ); ?>"><span aria-hidden="true"><?php echo esc_html( $e->icon() ); ?></span> <?php echo esc_html( $e->title() ); ?></a>
+					<a href="<?php echo esc_url( $e->permalink() ); ?>"><?php echo esc_html( $e->title() ); ?></a>
 				</h4>
 				<p class="gasf-home__meta">
 					<?php

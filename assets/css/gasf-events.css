@@ -103,20 +103,22 @@
 .gasf-upcoming__time { opacity:.7; min-width:5em; }
 .gasf-upcoming__name { flex:1; }
 
-/* ---- Home agenda (replaces the old MEC modern-list home block) ---- */
-.gasf-home { --e-color:#5a6b85; }
-.gasf-home__item { display:flex; gap:16px; align-items:center; padding:14px 2px; border-bottom:1px solid var(--gasf-border); }
+/* ---- Home agenda (matches the old MEC modern-list home block #12976) ----
+   Teal text date + salmon event-name links; inherits the theme font. Tune the
+   two colours here. */
+.gasf-home { --home-date:#2a9d8f; --home-link:#e07a5f; }
+.gasf-home__item { display:flex; gap:16px; align-items:flex-start; padding:14px 2px; border-bottom:1px solid var(--gasf-border); }
 .gasf-home__item:last-child { border-bottom:0; }
-.gasf-home__date { flex:none; width:62px; text-align:center; text-decoration:none; color:#fff; background:var(--e-color); border-radius:8px; padding:7px 4px; line-height:1.12; box-shadow:0 2px 8px rgba(0,0,0,.12); }
-.gasf-home__dow { display:block; font-size:.62rem; text-transform:uppercase; letter-spacing:.05em; opacity:.92; }
-.gasf-home__day { display:block; font-size:1.7rem; font-weight:800; }
-.gasf-home__mon { display:block; font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; opacity:.95; }
+.gasf-home__date { flex:none; width:60px; text-align:center; text-decoration:none; line-height:1.05; padding-top:2px; }
+.gasf-home__day { display:block; font-size:2.4rem; font-weight:800; color:var(--home-date); }
+.gasf-home__mon { display:block; font-size:.85rem; font-weight:700; text-transform:uppercase; letter-spacing:.03em; color:var(--home-date); }
+.gasf-home__dow { display:block; font-size:.68rem; text-transform:uppercase; letter-spacing:.04em; opacity:.55; }
 .gasf-home__body { flex:1; min-width:0; }
-.gasf-home__title { margin:0 0 3px; font-size:1.1rem; line-height:1.22; }
-.gasf-home__title a { text-decoration:none; color:var(--e-color); }
-.gasf-home__title a:hover { filter:brightness(.85); text-decoration:underline; }
-.gasf-home__meta { margin:0; opacity:.75; font-size:.9rem; }
-@media (max-width:560px){ .gasf-home__date{ width:54px; } .gasf-home__title{ font-size:1rem; } }
+.gasf-home__title { margin:0 0 3px; font-size:1.25rem; line-height:1.25; }
+.gasf-home__title a { text-decoration:none; color:var(--home-link); }
+.gasf-home__title a:hover { text-decoration:underline; }
+.gasf-home__meta { margin:0; opacity:.7; font-size:.92rem; }
+@media (max-width:560px){ .gasf-home__date{ width:52px; } .gasf-home__day{ font-size:2rem; } .gasf-home__title{ font-size:1.1rem; } }
 
 /* ---- Signage tiles ---- */
 .gasf-tiles { position:relative; width:100%; aspect-ratio:16/9; background:#000; border-radius:var(--gasf-radius); overflow:hidden; }
