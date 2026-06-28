@@ -34,13 +34,15 @@ final class Meta {
 	const COST           = '_gasf_cost';            // decimal (only when > 0)
 
 	// Provenance & sync.
-	const SOURCE       = '_gasf_source';        // manual | facebook | eventbrite
-	const FB_EVENT_ID  = '_gasf_fb_event_id';   // string
+	const SOURCE       = '_gasf_source';        // manual | facebook | ics | eventbrite
+	const SOURCE_UID   = '_gasf_source_uid';    // universal dedup key, namespaced "<source>|<uid>"
+	const SOURCE_FEED  = '_gasf_source_feed';   // which feed config produced it
+	const FB_EVENT_ID  = '_gasf_fb_event_id';   // FB mirror of the uid (kept for FB-specific UI)
 	const FB_ACCOUNT   = '_gasf_fb_account';    // string
 	const FB_COVER_ID  = '_gasf_fb_cover_id';   // string
-	const FB_MISSING   = '_gasf_fb_missing';    // int 0..2
+	const FB_MISSING   = '_gasf_fb_missing';    // int — consecutive misses (any synced source)
 	const SYNC_LOCKED  = '_gasf_sync_locked';   // bool (the "pin")
-	const FB_SNAPSHOT  = '_gasf_fb_snapshot';   // hash of last FB-synced fields (auto-pin detection)
+	const FB_SNAPSHOT  = '_gasf_fb_snapshot';   // hash of last synced fields (auto-pin detection)
 
 	// Venue / organizer per-event overrides (defaults live in Settings).
 	const VENUE_OVERRIDE     = '_gasf_venue_override';     // array

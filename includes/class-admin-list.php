@@ -99,9 +99,14 @@ final class Admin_List {
 				break;
 
 			case 'gasf_source':
-				echo $event->is_facebook()
-					? '<span style="background:#1877f2;color:#fff;padding:1px 6px;border-radius:3px;font-size:11px;">FB</span>'
-					: esc_html__( 'Manual', 'gasf-events' );
+				$src = $event->source();
+				if ( 'facebook' === $src ) {
+					echo '<span style="background:#1877f2;color:#fff;padding:1px 6px;border-radius:3px;font-size:11px;">FB</span>';
+				} elseif ( 'ics' === $src ) {
+					echo '<span style="background:#555;color:#fff;padding:1px 6px;border-radius:3px;font-size:11px;">ICS</span>';
+				} else {
+					echo esc_html__( 'Manual', 'gasf-events' );
+				}
 				break;
 
 			case 'gasf_views':
@@ -140,6 +145,7 @@ final class Admin_List {
 			<option value=""><?php esc_html_e( 'Any source', 'gasf-events' ); ?></option>
 			<option value="manual" <?php selected( $source, 'manual' ); ?>><?php esc_html_e( 'Manual', 'gasf-events' ); ?></option>
 			<option value="facebook" <?php selected( $source, 'facebook' ); ?>><?php esc_html_e( 'Facebook', 'gasf-events' ); ?></option>
+			<option value="ics" <?php selected( $source, 'ics' ); ?>><?php esc_html_e( 'iCal feed', 'gasf-events' ); ?></option>
 		</select>
 		<?php
 	}
@@ -189,9 +195,15 @@ final class Admin_List {
 
 		$source = isset( $_GET['gasf_source'] ) ? sanitize_text_field( wp_unslash( $_GET['gasf_source'] ) ) : '';
 		if ( 'manual' === $source ) {
-			$meta_query[] = [ 'key' => Meta::FB_EVENT_ID, 'compare' => 'NOT EXISTS' ];
+			$meta_query[] = [
+				'relation' => 'OR',
+				[ 'key' => Meta::SOURCE, 'value' => 'manual' ],
+				[ 'key' => Meta::SOURCE, 'compare' => 'NOT EXISTS' ],
+			];
 		} elseif ( 'facebook' === $source ) {
-			$meta_query[] = [ 'key' => Meta::FB_EVENT_ID, 'compare' => 'EXISTS' ];
+			$meta_query[] = [ 'key' => Meta::SOURCE, 'value' => 'facebook' ];
+		} elseif ( 'ics' === $source ) {
+			$meta_query[] = [ 'key' => Meta::SOURCE, 'value' => 'ics' ];
 		}
 
 		// "Show all events in this series" (from the Recurring-column link).

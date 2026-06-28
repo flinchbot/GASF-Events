@@ -447,9 +447,18 @@ Run as its own GSD milestone in the WordPress/plugin repo (not the kiosk repo):
 3. **P3 — Migration script** (dry-run → parallel-run copies under temp slug; validation harness; 79-rich-event spot-check; index `_gasf_start_ts`).
 4. **P4 — Display layer** (month grid, list, signage tile, single-event template; first-class print route + print stylesheet; visitor add-to-calendar incl. kiosk QR; default-image fallback; repoint/rename custom shortcodes; **schema injector with organizer+image+offers+eventStatus**).
 5. **P5 — Native FB importer** (cron, fetch, upsert, cover SHA1 dedup, FB-recurrence→series, deletion handling, token import, sync-status dashboard).
-6. **P6 — All Events list + Eventbrite + exports + view stats** (enhanced list table: Added/Event-date/Recurring/Views columns, text search + date-range filter; Bulk Actions: Publish to Eventbrite, Trash, CSV, ICS; port Eventbrite client + queue/cron into core; **three-way FB→WP→EB auto-sync** incl. trash/cancel propagation; cache-safe view-counter beacon + Stats panel — §4.5/§4.5.1/§7.1/§7.2).
-7. **P7 — Public feeds** (REST w/ `updated_since`; per-event + subscribable iCal).
-8. **P8 — Cutover + decommission** (in-place convert, slug switch, cache-purge wiring, deactivate MEC/importer, **absorb & retire `gasf-event-calendars` + module 26 / Google sync**, drop tables, monitoring, rollback drill, memory updates).
+6. **P6 — Multi-feed ingest & Feeds router** (DONE) — see §7.3. Shared `Event_Ingest` core (FB + ICS + manual write through one dedup/provenance path); ICS parser + Google Calendar destination (both ported from module 26); unified **Feeds** page with per-feed destinations (GASF / Google / both); absorbs the P5 FB importer + the legacy Calendar Sync module. Gated OFF.
+7. **P7 — All Events bulk actions + Eventbrite + view stats** (Bulk Actions: Publish to Eventbrite, Trash, CSV, ICS; port Eventbrite client + queue into core; **three-way FB→WP→EB auto-sync** incl. trash/cancel propagation; cache-safe view-counter beacon + Stats panel — §4.5/§4.5.1/§7.1/§7.2).
+8. **P8 — Public feeds** (REST w/ `updated_since`; per-event + subscribable iCal).
+9. **P9 — Cutover + decommission** (in-place convert, slug switch, cache-purge wiring, deactivate MEC/importer, **absorb & retire `gasf-event-calendars` + module 26 / Calendar Sync**, drop tables, monitoring, rollback drill, memory updates).
+
+### 7.3 Multi-feed ingest & the Feeds router (built in P6)
+Decision (2026-06-28): generalize ingestion so the GASF Calendar can be fed by **many** sources, and turn the legacy one-way "MEC→Google" Calendar Sync into a **feed router** — all inside the plugin (Calendar Sync module 26 is absorbed, not kept).
+- **One ingest core — `Event_Ingest`.** Facebook, ICS feeds, (later) Eventbrite-inbound, and manual edits all upsert through one path. Dedup is namespaced per source via `_gasf_source_uid = "<source>|<uid>"` (so feed A can't collide with feed B); provenance in `_gasf_source` + `_gasf_source_feed`; the pin rules, cover SHA1 dedup, series grouping, and auto-pin snapshot all live here once.
+- **Feeds.** Each feed = `{ type: facebook|ics, label, source (page+token | ics url), enabled, destinations }`. The 15-min cron runs every enabled feed.
+- **Destinations (the tickboxes you asked for): GASF Calendar, Google Calendar, or both.** GASF = `Event_Ingest::upsert` + miss-prune; Google = `Google_Calendar::sync_source` (service-account JWT, idempotent insert/update/delete keyed on `extendedProperties.private`, reimplemented from module 26). The ICS parser is reused for both inbound ingest and the outbound Google body.
+- **Loop/dedup safety:** every ingested event carries its source + per-source UID; the Google marker is `gasf_mgr=gasf-events` (distinct from the old module's `calsync`) so the two never fight during parallel run.
+- **One admin home:** Events → **Feeds** (master gate, Google calendar id, per-feed destinations, dry-run/run, status + token-expiry + log, one-click import of FB tokens + Calendar-Sync ICS sources). Replaces the P5 sync page and the calsync tab.
 
 ---
 

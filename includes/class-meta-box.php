@@ -52,6 +52,8 @@ final class Meta_Box {
 		$cost      = (string) $g( Meta::COST );
 		$source    = (string) $g( Meta::SOURCE ) ?: 'manual';
 		$fb_id     = (string) $g( Meta::FB_EVENT_ID );
+		$synced    = ( 'manual' !== $source && '' !== $source ) || '' !== (string) $g( Meta::SOURCE_UID ) || '' !== $fb_id;
+		$src_label = 'facebook' === $source ? __( 'Facebook', 'gasf-events' ) : ( 'ics' === $source ? __( 'iCal feed', 'gasf-events' ) : __( 'Manual', 'gasf-events' ) );
 		$locked    = (bool) $g( Meta::SYNC_LOCKED );
 		$venue_ov  = (array) ( $g( Meta::VENUE_OVERRIDE ) ?: [] );
 
@@ -156,11 +158,9 @@ final class Meta_Box {
 
 			<p style="margin-top:16px;">
 				<?php esc_html_e( 'Source:', 'gasf-events' ); ?>
-				<?php if ( 'facebook' === $source || $fb_id ) : ?>
-					<span class="badge fb"><?php esc_html_e( 'Facebook', 'gasf-events' ); ?></span>
-					<label style="margin-left:14px;"><input type="checkbox" name="gasf_sync_locked" value="1" <?php checked( $locked ); ?>> <?php esc_html_e( "Pin — don't let Facebook sync overwrite this event", 'gasf-events' ); ?></label>
-				<?php else : ?>
-					<span class="badge"><?php esc_html_e( 'Manual', 'gasf-events' ); ?></span>
+				<span class="badge <?php echo 'facebook' === $source ? 'fb' : ''; ?>"><?php echo esc_html( $src_label ); ?></span>
+				<?php if ( $synced ) : ?>
+					<label style="margin-left:14px;"><input type="checkbox" name="gasf_sync_locked" value="1" <?php checked( $locked ); ?>> <?php esc_html_e( "Pin — don't let the feed sync overwrite this event", 'gasf-events' ); ?></label>
 				<?php endif; ?>
 			</p>
 		</div>
@@ -249,15 +249,17 @@ final class Meta_Box {
 			update_post_meta( $post_id, Meta::SOURCE, 'manual' );
 		}
 
-		// The FB sync pin (only meaningful for FB-sourced events).
-		if ( (string) get_post_meta( $post_id, Meta::FB_EVENT_ID, true ) ) {
+		// The sync pin (meaningful for any feed-sourced event: facebook, ics, …).
+		$src = (string) get_post_meta( $post_id, Meta::SOURCE, true );
+		$is_synced = ( '' !== $src && 'manual' !== $src ) || '' !== (string) get_post_meta( $post_id, Meta::SOURCE_UID, true ) || '' !== (string) get_post_meta( $post_id, Meta::FB_EVENT_ID, true );
+		if ( $is_synced ) {
 			update_post_meta( $post_id, Meta::SYNC_LOCKED, empty( $_POST['gasf_sync_locked'] ) ? 0 : 1 );
 
 			// Auto-pin on edit: if the maintainer changed a synced field but left the
 			// pin off, pin it anyway so their edit isn't reverted by the next sync.
 			if ( empty( $_POST['gasf_sync_locked'] ) ) {
 				$snap = (string) get_post_meta( $post_id, Meta::FB_SNAPSHOT, true );
-				$now  = FB_Importer::snapshot(
+				$now  = Event_Ingest::snapshot(
 					(string) get_post_field( 'post_title', $post_id ),
 					(string) get_post_field( 'post_content', $post_id ),
 					(string) get_post_meta( $post_id, Meta::START, true ),
