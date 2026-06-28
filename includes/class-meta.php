@@ -38,7 +38,6 @@ final class Meta {
 	const SOURCE_UID   = '_gasf_source_uid';    // universal dedup key, namespaced "<source>|<uid>"
 	const SOURCE_FEED  = '_gasf_source_feed';   // which feed config produced it
 	const FB_EVENT_ID  = '_gasf_fb_event_id';   // FB mirror of the uid (kept for FB-specific UI)
-	const FB_ACCOUNT   = '_gasf_fb_account';    // string
 	const FB_COVER_ID  = '_gasf_fb_cover_id';   // string
 	const FB_MISSING   = '_gasf_fb_missing';    // int — consecutive misses (any synced source)
 	const SYNC_LOCKED  = '_gasf_sync_locked';   // bool (the "pin")
@@ -76,21 +75,49 @@ final class Meta {
 
 	const ON_ATTACHMENT_COVER_SHA1 = '_gasf_cover_sha1';
 
+	/** Site timezone, memoized (request-stable; avoids re-parsing in hot loops). */
+	public static function tz(): \DateTimeZone {
+		static $tz = null;
+		return $tz ??= wp_timezone();
+	}
+
+	/**
+	 * Parse a site-local 'Y-m-d H:i:s' string into a DateTimeImmutable in the
+	 * site timezone, or null. The single home for this construct.
+	 */
+	public static function to_datetime( string $local ): ?\DateTimeImmutable {
+		$local = trim( $local );
+		if ( '' === $local ) {
+			return null;
+		}
+		try {
+			return new \DateTimeImmutable( $local, self::tz() );
+		} catch ( \Exception $e ) {
+			return null;
+		}
+	}
+
 	/**
 	 * Convert a site-local 'Y-m-d H:i:s' string to a UTC unix timestamp,
 	 * DST-correctly, using the site timezone.
 	 */
 	public static function local_to_ts( string $local ): int {
-		$local = trim( $local );
-		if ( '' === $local ) {
-			return 0;
-		}
-		try {
-			$dt = new \DateTimeImmutable( $local, wp_timezone() );
-			return $dt->getTimestamp();
-		} catch ( \Exception $e ) {
-			return 0;
-		}
+		$dt = self::to_datetime( $local );
+		return $dt ? $dt->getTimestamp() : 0;
+	}
+
+	/** Find one post id by a single meta key/value (0 if none). */
+	public static function find_id_by( string $key, $value ): int {
+		$ids = get_posts( [
+			'post_type'        => GASF_EVENTS_CPT,
+			'post_status'      => 'any',
+			'numberposts'      => 1,
+			'fields'           => 'ids',
+			'meta_key'         => $key,
+			'meta_value'       => $value,
+			'suppress_filters' => true,
+		] );
+		return $ids ? (int) $ids[0] : 0;
 	}
 
 	/**
@@ -113,7 +140,7 @@ final class Meta {
 		$string_keys = [
 			self::START, self::END, self::STATUS, self::STATUS_REASON, self::ONLINE_LINK,
 			self::MORE_INFO_URL, self::MORE_INFO_TITLE, self::SOURCE, self::FB_EVENT_ID,
-			self::FB_ACCOUNT, self::FB_COVER_ID, self::SERIES_ID, self::SERIES_ROLE,
+			self::FB_COVER_ID, self::SERIES_ID, self::SERIES_ROLE,
 			self::REPEAT, self::REPEAT_UNTIL,
 		];
 		foreach ( $string_keys as $key ) {

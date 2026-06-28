@@ -50,8 +50,9 @@ final class Schema {
 
 	/** Build the schema.org Event node. */
 	public static function node( Event $event ): array {
-		$start = $event->start();
-		$end   = $event->end();
+		$start  = $event->start();
+		$end    = $event->end();
+		$status = $event->status();
 
 		$node = [
 			'@type'       => 'Event',
@@ -60,7 +61,7 @@ final class Schema {
 			'description' => wp_strip_all_tags( $event->description() ),
 			'url'         => $event->permalink(),
 			'startDate'   => $event->start_iso(),
-			'eventStatus' => self::status_url( $event->status() ),
+			'eventStatus' => self::status_url( $status ),
 		];
 		// Only emit a RASTER image — Google rejects SVG; omit rather than emit invalid.
 		$img = $event->schema_image();
@@ -72,7 +73,7 @@ final class Schema {
 		}
 
 		// Attendance mode + location.
-		if ( 'online_only' === $event->status() ) {
+		if ( 'online_only' === $status ) {
 			$node['eventAttendanceMode'] = 'https://schema.org/OnlineEventAttendanceMode';
 			$node['location'] = [
 				'@type' => 'VirtualLocation',
@@ -110,7 +111,7 @@ final class Schema {
 				'@type'         => 'Offer',
 				'price'         => number_format( $cost, 2, '.', '' ),
 				'priceCurrency' => 'USD',
-				'availability'  => 'sold_out' === $event->status() ? 'https://schema.org/SoldOut' : 'https://schema.org/InStock',
+				'availability'  => 'sold_out' === $status ? 'https://schema.org/SoldOut' : 'https://schema.org/InStock',
 				'url'           => $event->permalink(),
 				'validFrom'     => get_post_time( 'c', true, $event->post() ),
 			];

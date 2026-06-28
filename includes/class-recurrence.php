@@ -103,14 +103,4 @@ final class Recurrence {
 			return ( new \DateTimeImmutable( 'now', wp_timezone() ) )->modify( '+1 year' );
 		}
 	}
-
-	/** Human label for a frequency. */
-	public static function label( string $freq ): string {
-		switch ( $freq ) {
-			case 'weekly':   return __( 'Weekly', 'gasf-events' );
-			case 'biweekly': return __( 'Every 2 weeks', 'gasf-events' );
-			case 'monthly':  return __( 'Monthly (same weekday)', 'gasf-events' );
-			default:         return __( 'Does not repeat', 'gasf-events' );
-		}
-	}
 }

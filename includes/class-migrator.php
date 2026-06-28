@@ -200,16 +200,7 @@ final class Migrator {
 	}
 
 	public static function find_copy( int $mec_id ): int {
-		$ids = get_posts( [
-			'post_type'        => GASF_EVENTS_CPT,
-			'post_status'      => 'any',
-			'numberposts'      => 1,
-			'fields'           => 'ids',
-			'meta_key'         => self::MIGRATED_FROM,
-			'meta_value'       => $mec_id,
-			'suppress_filters' => true,
-		] );
-		return $ids ? (int) $ids[0] : 0;
+		return Meta::find_id_by( self::MIGRATED_FROM, $mec_id );
 	}
 
 	/* ---- Inventory ---------------------------------------------------- */

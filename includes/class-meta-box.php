@@ -51,8 +51,8 @@ final class Meta_Box {
 		$mi_title  = (string) $g( Meta::MORE_INFO_TITLE );
 		$cost      = (string) $g( Meta::COST );
 		$source    = (string) $g( Meta::SOURCE ) ?: 'manual';
-		$fb_id     = (string) $g( Meta::FB_EVENT_ID );
-		$synced    = ( 'manual' !== $source && '' !== $source ) || '' !== (string) $g( Meta::SOURCE_UID ) || '' !== $fb_id;
+		$event_obj = Event::get( $post->ID );
+		$synced    = $event_obj && $event_obj->is_synced();
 		$src_label = 'facebook' === $source ? __( 'Facebook', 'gasf-events' ) : ( 'ics' === $source ? __( 'iCal feed', 'gasf-events' ) : __( 'Manual', 'gasf-events' ) );
 		$locked    = (bool) $g( Meta::SYNC_LOCKED );
 		$venue_ov  = (array) ( $g( Meta::VENUE_OVERRIDE ) ?: [] );
@@ -250,22 +250,15 @@ final class Meta_Box {
 		}
 
 		// The sync pin (meaningful for any feed-sourced event: facebook, ics, …).
-		$src = (string) get_post_meta( $post_id, Meta::SOURCE, true );
-		$is_synced = ( '' !== $src && 'manual' !== $src ) || '' !== (string) get_post_meta( $post_id, Meta::SOURCE_UID, true ) || '' !== (string) get_post_meta( $post_id, Meta::FB_EVENT_ID, true );
-		if ( $is_synced ) {
+		$event = Event::get( $post_id );
+		if ( $event && $event->is_synced() ) {
 			update_post_meta( $post_id, Meta::SYNC_LOCKED, empty( $_POST['gasf_sync_locked'] ) ? 0 : 1 );
 
 			// Auto-pin on edit: if the maintainer changed a synced field but left the
 			// pin off, pin it anyway so their edit isn't reverted by the next sync.
 			if ( empty( $_POST['gasf_sync_locked'] ) ) {
 				$snap = (string) get_post_meta( $post_id, Meta::FB_SNAPSHOT, true );
-				$now  = Event_Ingest::snapshot(
-					(string) get_post_field( 'post_title', $post_id ),
-					(string) get_post_field( 'post_content', $post_id ),
-					(string) get_post_meta( $post_id, Meta::START, true ),
-					(string) get_post_meta( $post_id, Meta::END, true )
-				);
-				if ( '' !== $snap && $snap !== $now ) {
+				if ( '' !== $snap && $snap !== Event_Ingest::snapshot_post( $post_id ) ) {
 					update_post_meta( $post_id, Meta::SYNC_LOCKED, 1 );
 				}
 			}

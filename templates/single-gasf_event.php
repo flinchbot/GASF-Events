@@ -34,7 +34,7 @@ $atc     = Add_To_Calendar::links( $event );
 				<?php if ( $event->status() ) : ?>
 					<p class="gasf-single__statusbanner gasf-status--<?php echo esc_attr( $event->status() ); ?>">
 						<?php echo esc_html( $event->status_label() ); ?>
-						<?php $reason = get_post_meta( $event->id(), Meta::STATUS_REASON, true ); ?>
+						<?php $reason = $event->status_reason(); ?>
 						<?php if ( $reason ) : ?>— <?php echo esc_html( $reason ); ?><?php endif; ?>
 					</p>
 				<?php endif; ?>

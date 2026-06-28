@@ -65,7 +65,7 @@ final class Feeds_Admin {
 
 	public function save_gate(): void {
 		$this->guard( 'gasf_feeds_gate' );
-		update_option( Feeds::OPT_ENABLE, ! empty( $_POST['enable'] ) );
+		update_option( Feeds::OPT_ENABLE, ! empty( $_POST['enable'] ), false );
 		update_option( Feeds::OPT_GCAL, [ 'calendar_id' => sanitize_text_field( wp_unslash( $_POST['calendar_id'] ?? '' ) ) ], false );
 		( new Feeds() )->sync_cron_state();
 		$this->back();

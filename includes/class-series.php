@@ -247,14 +247,6 @@ final class Series {
 	/* ---- Helpers ------------------------------------------------------ */
 
 	private static function dt( string $local ): ?\DateTimeImmutable {
-		$local = trim( $local );
-		if ( '' === $local ) {
-			return null;
-		}
-		try {
-			return new \DateTimeImmutable( $local, wp_timezone() );
-		} catch ( \Exception $e ) {
-			return null;
-		}
+		return Meta::to_datetime( $local );
 	}
 }

@@ -163,6 +163,19 @@ final class CLI {
 		\WP_CLI::success( sprintf( 'Deleted %d copy-mode posts.', $n ) );
 	}
 
+	/**
+	 * Add the wp_postmeta indexes for fast _gasf_*_ts range queries.
+	 * Run during the cutover window (ALTERs the shared postmeta table).
+	 *
+	 * @when after_wp_load
+	 */
+	public function ensure_indexes( $args, $assoc ): void {
+		foreach ( Post_Type::ensure_indexes() as $line ) {
+			\WP_CLI::log( $line );
+		}
+		\WP_CLI::success( 'Indexes ensured.' );
+	}
+
 	/* ---- helpers ------------------------------------------------------ */
 
 	private static function statuses( array $assoc ): array {

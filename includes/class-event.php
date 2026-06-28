@@ -57,23 +57,11 @@ final class Event {
 	/* ---- Date / time -------------------------------------------------- */
 
 	public function start(): ?\DateTimeImmutable {
-		return $this->datetime( (string) $this->meta( Meta::START ) );
+		return Meta::to_datetime( (string) $this->meta( Meta::START ) );
 	}
 
 	public function end(): ?\DateTimeImmutable {
-		return $this->datetime( (string) $this->meta( Meta::END ) );
-	}
-
-	private function datetime( string $local ): ?\DateTimeImmutable {
-		$local = trim( $local );
-		if ( '' === $local ) {
-			return null;
-		}
-		try {
-			return new \DateTimeImmutable( $local, wp_timezone() );
-		} catch ( \Exception $e ) {
-			return null;
-		}
+		return Meta::to_datetime( (string) $this->meta( Meta::END ) );
 	}
 
 	public function start_ts(): int {
@@ -142,12 +130,10 @@ final class Event {
 		return $s ?: 'manual';
 	}
 
-	public function is_facebook(): bool {
-		return 'facebook' === $this->source() || '' !== (string) $this->meta( Meta::FB_EVENT_ID );
-	}
-
-	public function is_sync_locked(): bool {
-		return (bool) $this->meta( Meta::SYNC_LOCKED );
+	/** True if this event came from a feed (facebook/ics/…), not a manual entry. */
+	public function is_synced(): bool {
+		$s = $this->source();
+		return ( 'manual' !== $s ) || '' !== (string) $this->meta( Meta::SOURCE_UID ) || '' !== (string) $this->meta( Meta::FB_EVENT_ID );
 	}
 
 	public function series_id(): string {
@@ -200,20 +186,26 @@ final class Event {
 	/* ---- Venue / organizer (settings + per-event override) ------------ */
 
 	public function venue(): array {
-		$override = $this->meta( Meta::VENUE_OVERRIDE );
-		return is_array( $override ) && ! empty( $override['name'] )
-			? wp_parse_args( $override, Settings::venue() )
-			: Settings::venue();
+		return $this->with_override( Meta::VENUE_OVERRIDE, Settings::venue() );
 	}
 
 	public function organizer(): array {
-		$override = $this->meta( Meta::ORGANIZER_OVERRIDE );
+		return $this->with_override( Meta::ORGANIZER_OVERRIDE, Settings::organizer() );
+	}
+
+	/** A per-event override array merged over the defaults (only if it has a name). */
+	private function with_override( string $meta_key, array $defaults ): array {
+		$override = $this->meta( $meta_key );
 		return is_array( $override ) && ! empty( $override['name'] )
-			? wp_parse_args( $override, Settings::organizer() )
-			: Settings::organizer();
+			? wp_parse_args( $override, $defaults )
+			: $defaults;
 	}
 
 	/* ---- Details ------------------------------------------------------ */
+
+	public function status_reason(): string {
+		return (string) $this->meta( Meta::STATUS_REASON );
+	}
 
 	public function more_info_url(): string {
 		return (string) $this->meta( Meta::MORE_INFO_URL );

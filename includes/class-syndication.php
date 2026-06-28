@@ -38,15 +38,20 @@ final class Destinations {
 
 	/** @return array<string,Publish_Destination> */
 	public static function all(): array {
-		$list = [];
+		// Memoized — the admin list calls get() per published destination per row.
+		static $cache = null;
+		if ( null !== $cache ) {
+			return $cache;
+		}
 		$eb   = new Eventbrite_Destination();
-		$list[ $eb->key() ] = $eb;
+		$list = [ $eb->key() => $eb ];
 		/**
 		 * Register additional outbound destinations.
 		 * @param array<string,Publish_Destination> $list
 		 */
-		$list = apply_filters( 'gasf_events_destinations', $list );
-		return array_filter( $list, static fn( $d ) => $d instanceof Publish_Destination );
+		$list  = apply_filters( 'gasf_events_destinations', $list );
+		$cache = array_filter( $list, static fn( $d ) => $d instanceof Publish_Destination );
+		return $cache;
 	}
 
 	public static function get( string $key ): ?Publish_Destination {

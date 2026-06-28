@@ -84,4 +84,32 @@ final class Post_Type {
 			}
 		}
 	}
+
+	/**
+	 * Add compound (meta_key, meta_value) indexes on wp_postmeta so the numeric
+	 * `_gasf_*_ts` range queries (every calendar view / feed / sort) use an index
+	 * instead of filesorting the whole meta table. Idempotent.
+	 *
+	 * NOTE: this ALTERs the SHARED wp_postmeta table, so it is NOT run at
+	 * activation (it could briefly lock the table while MEC is still live). Run
+	 * it deliberately at cutover via `wp gasf-events ensure-indexes`.
+	 *
+	 * @return string[] human-readable result lines
+	 */
+	public static function ensure_indexes(): array {
+		global $wpdb;
+		$out   = [];
+		$table = $wpdb->postmeta;
+		foreach ( [ 'gasf_start_ts', 'gasf_end_ts' ] as $name ) {
+			$exists = $wpdb->get_results( $wpdb->prepare( "SHOW INDEX FROM {$table} WHERE Key_name = %s", $name ) ); // phpcs:ignore WordPress.DB
+			if ( $exists ) {
+				$out[] = "{$name}: already present";
+				continue;
+			}
+			// meta_value prefix length 12 comfortably covers a 10-digit unix ts.
+			$wpdb->query( "ALTER TABLE {$table} ADD INDEX {$name} (meta_key(20), meta_value(12))" ); // phpcs:ignore WordPress.DB
+			$out[] = "{$name}: created";
+		}
+		return $out;
+	}
 }

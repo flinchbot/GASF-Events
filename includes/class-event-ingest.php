@@ -89,12 +89,7 @@ final class Event_Ingest {
 		// Snapshot from the STORED values (post-kses/slashing), reading exactly what
 		// the editor's auto-pin will read back — otherwise every synced event would
 		// self-pin on the first manual save due to entity/normalization drift.
-		update_post_meta( $post_id, Meta::FB_SNAPSHOT, self::snapshot(
-			(string) get_post_field( 'post_title', $post_id ),
-			(string) get_post_field( 'post_content', $post_id ),
-			(string) get_post_meta( $post_id, Meta::START, true ),
-			(string) get_post_meta( $post_id, Meta::END, true )
-		) );
+		update_post_meta( $post_id, Meta::FB_SNAPSHOT, self::snapshot_post( $post_id ) );
 
 		if ( ! empty( $norm['cover_url'] ) ) {
 			Cover_Sideloader::sync( $post_id, (string) $norm['cover_url'], (string) ( $norm['cover_id'] ?? '' ) );
@@ -105,16 +100,20 @@ final class Event_Ingest {
 
 	/** Find an existing event by source + external uid. */
 	public static function find( string $source, string $uid ): int {
-		$ids = get_posts( [
-			'post_type'        => GASF_EVENTS_CPT,
-			'post_status'      => 'any',
-			'numberposts'      => 1,
-			'fields'           => 'ids',
-			'meta_key'         => Meta::SOURCE_UID,
-			'meta_value'       => self::key( $source, $uid ),
-			'suppress_filters' => true,
-		] );
-		return $ids ? (int) $ids[0] : 0;
+		return Meta::find_id_by( Meta::SOURCE_UID, self::key( $source, $uid ) );
+	}
+
+	/**
+	 * Snapshot hash from a post's STORED title/content/start/end — used by the
+	 * editor's auto-pin so both sides hash identical (post-kses) bytes.
+	 */
+	public static function snapshot_post( int $post_id ): string {
+		return self::snapshot(
+			(string) get_post_field( 'post_title', $post_id ),
+			(string) get_post_field( 'post_content', $post_id ),
+			(string) get_post_meta( $post_id, Meta::START, true ),
+			(string) get_post_meta( $post_id, Meta::END, true )
+		);
 	}
 
 	/**
