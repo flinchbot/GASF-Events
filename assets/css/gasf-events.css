@@ -5,6 +5,21 @@
    color (so it's readable on light OR dark themes). We only hard-set color on
    elements that have our OWN background (day cells, chips, tiles, hero, menus). */
 
+/* Self-hosted "Basic" — the narrow face the old MEC home list used. MEC pulled
+   it from Google (mec_h_fontfamily = "[Basic,regular]"); we bundle it so GASF
+   Events owns the font outright and the look survives MEC's removal. Applied to
+   the home event-name titles via --gasf-home-font. */
+@font-face {
+	font-family:'Basic'; font-style:normal; font-weight:400; font-display:swap;
+	src:url(../fonts/basic-latin.woff2) format('woff2');
+	unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+@font-face {
+	font-family:'Basic'; font-style:normal; font-weight:400; font-display:swap;
+	src:url(../fonts/basic-latin-ext.woff2) format('woff2');
+	unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+
 .gasf-cal, .gasf-list, .gasf-tiles, .gasf-upcoming, .gasf-single, .gasf-atc {
 	--gasf-accent: #b8860b;
 	--gasf-text: #1a1a1a;
@@ -107,14 +122,14 @@
    Self-contained: GASF Events owns these colour tokens outright — no dependency
    on the theme's MEC-era variables (--of-pink / --of-turquoise), which will
    rightly be removed once MEC is gone. Values match the club brand today; edit
-   them here to re-theme the home list.
-   The title is an <h4> with NO font-family of its own, so it inherits the
-   theme's heading font exactly like MEC's <h4 class="mec-event-title"> did —
-   nothing to hardcode, and it follows any future theme change automatically. */
+   them here to re-theme the home list. The title face is the self-hosted
+   "Basic" (--gasf-home-font), matching the old MEC home list without depending
+   on MEC's Google-Fonts load (see the @font-face block up top). */
 .gasf-home {
 	--gasf-home-date:#00ced1;        /* date text (turquoise) */
 	--gasf-home-link:#ff6b6b;        /* event-name link (pink) */
 	--gasf-home-link-hover:#ffaa00;  /* event-name hover (amber) */
+	--gasf-home-font:"Basic","Arial Narrow",system-ui,sans-serif;  /* self-hosted narrow title face */
 }
 .gasf-home__item { display:flex; gap:18px; align-items:flex-start; padding:14px 2px; border-bottom:1px solid var(--gasf-border); }
 .gasf-home__item:last-child { border-bottom:0; }
@@ -123,7 +138,7 @@
 .gasf-home__mon { display:inline-block; margin-left:4px; font-size:.85rem; font-weight:700; font-style:italic; text-transform:uppercase; letter-spacing:.03em; color:var(--gasf-home-date); }
 .gasf-home__dow { display:block; font-size:1.15rem; font-weight:700; text-transform:uppercase; letter-spacing:.02em; white-space:nowrap; color:var(--gasf-home-date); }
 .gasf-home__body { flex:1; min-width:0; }
-.gasf-home__title { margin:0 0 5px; font-size:1.7rem; line-height:1.18; }
+.gasf-home__title { margin:0 0 5px; font-family:var(--gasf-home-font); font-size:1.7rem; line-height:1.18; }
 .gasf-home__title a { text-decoration:none; color:var(--gasf-home-link); transition:color .3s ease; }
 .gasf-home__title a:hover { color:var(--gasf-home-link-hover); }
 .gasf-home__meta { margin:0; opacity:.7; font-size:1rem; }
