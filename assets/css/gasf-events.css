@@ -113,12 +113,10 @@
 .gasf-home__mon { display:block; font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; opacity:.95; }
 .gasf-home__body { flex:1; min-width:0; }
 .gasf-home__title { margin:0 0 3px; font-size:1.1rem; line-height:1.22; }
-.gasf-home__title a { text-decoration:none; color:inherit; }
-.gasf-home__title a:hover { color:var(--e-color); }
+.gasf-home__title a { text-decoration:none; color:var(--e-color); }
+.gasf-home__title a:hover { filter:brightness(.85); text-decoration:underline; }
 .gasf-home__meta { margin:0; opacity:.75; font-size:.9rem; }
-.gasf-home__action { flex:none; }
-.gasf-home__action .gasf-btn { white-space:nowrap; }
-@media (max-width:560px){ .gasf-home__action{ display:none; } .gasf-home__date{ width:54px; } .gasf-home__title{ font-size:1rem; } }
+@media (max-width:560px){ .gasf-home__date{ width:54px; } .gasf-home__title{ font-size:1rem; } }
 
 /* ---- Signage tiles ---- */
 .gasf-tiles { position:relative; width:100%; aspect-ratio:16/9; background:#000; border-radius:var(--gasf-radius); overflow:hidden; }
