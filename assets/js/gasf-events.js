@@ -31,7 +31,11 @@
 				pop: { show: false, title: '', time: '', img: '', excerpt: '', x: 0, y: 0, above: false },
 				_t: null,
 				show: function ( ev ) {
-					var el = ev.currentTarget, d = el.dataset, self = this;
+					// Read data + position from the nearest element carrying the data,
+					// so the trigger can sit on a parent row (home view) while a child
+					// link drives keyboard focus. Chips (calendar) are their own host.
+					var el = ( ev.currentTarget.closest && ev.currentTarget.closest( '[data-title]' ) ) || ev.currentTarget;
+					var d = el.dataset, self = this;
 					clearTimeout( this._t );
 					this._t = setTimeout( function () {
 						var r = el.getBoundingClientRect();
