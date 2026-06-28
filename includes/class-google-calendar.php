@@ -214,20 +214,6 @@ final class Google_Calendar {
 		return ( $existing['hash'] ?? '' ) !== $new_hash;
 	}
 
-	private static function dt_key( array $dt ): string {
-		if ( isset( $dt['date'] ) ) {
-			return 'd:' . $dt['date'];
-		}
-		if ( isset( $dt['dateTime'] ) ) {
-			try {
-				return 't:' . ( new \DateTimeImmutable( $dt['dateTime'] ) )->getTimestamp();
-			} catch ( \Exception $e ) {
-				return 't:' . $dt['dateTime'];
-			}
-		}
-		return '';
-	}
-
 	private static function b64( string $s ): string {
 		return rtrim( strtr( base64_encode( $s ), '+/', '-_' ), '=' );
 	}

@@ -11,7 +11,9 @@ namespace GASF_Events;
 
 defined( 'ABSPATH' ) || exit;
 
-$accent = $atts['color'] ?: 'var(--gasf-accent)';
+// Accept a hex color or the CSS var default; reject anything else so the
+// shortcode `color` attribute can't inject arbitrary CSS declarations.
+$accent = sanitize_hex_color( (string) $atts['color'] ) ?: 'var(--gasf-accent)';
 ?>
 <div class="gasf-upcoming" style="--gasf-accent:<?php echo esc_attr( $accent ); ?>;">
 	<?php if ( ! empty( $atts['heading'] ) ) : ?>

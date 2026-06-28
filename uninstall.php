@@ -17,6 +17,15 @@ delete_option( 'gasf_events_venue' );
 delete_option( 'gasf_events_organizer' );
 delete_option( 'gasf_events_default_image' );
 
+// Credentials & integration config — remove on uninstall (these are not club
+// content, unlike the event posts/meta, which are deliberately preserved).
+delete_option( 'gasf_events_eventbrite' ); // Eventbrite private token
+delete_option( 'gasf_events_feeds' );      // Facebook page access tokens + ICS feeds
+delete_option( 'gasf_events_gcal' );
+delete_option( 'gasf_events_enable_sync' );
+delete_option( 'gasf_events_caps_ver' );
+delete_transient( 'gasf_events_gcal_token' );
+
 $caps = [
 	'edit_gasf_event', 'read_gasf_event', 'delete_gasf_event',
 	'edit_gasf_events', 'edit_others_gasf_events', 'publish_gasf_events',

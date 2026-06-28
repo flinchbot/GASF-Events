@@ -39,7 +39,8 @@ final class Add_To_Calendar {
 
 		if ( 'event' === $mode ) {
 			$event = Event::get( (int) ( $_GET['event'] ?? 0 ) );
-			if ( ! $event ) {
+			// Published only — don't leak a draft/private event's details via id guessing.
+			if ( ! $event || 'publish' !== get_post_status( $event->id() ) ) {
 				status_header( 404 );
 				exit;
 			}
@@ -203,9 +204,15 @@ final class Add_To_Calendar {
 		$pos = 0;
 		$len = strlen( $line );
 		while ( $pos < $len ) {
-			$chunk = substr( $line, $pos, 0 === $pos ? 75 : 74 );
-			$out  .= ( 0 === $pos ? '' : "\r\n " ) . $chunk;
-			$pos  += ( 0 === $pos ? 75 : 74 );
+			$max = 0 === $pos ? 75 : 74;
+			$max = min( $max, $len - $pos );
+			// Don't split inside a multibyte UTF-8 sequence (ü/ö/ä/ß): back off the
+			// cut while the next byte is a continuation byte (10xxxxxx).
+			while ( $max > 1 && $pos + $max < $len && ( ord( $line[ $pos + $max ] ) & 0xC0 ) === 0x80 ) {
+				$max--;
+			}
+			$out .= ( 0 === $pos ? '' : "\r\n " ) . substr( $line, $pos, $max );
+			$pos += $max;
 		}
 		return $out;
 	}

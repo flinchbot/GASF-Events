@@ -51,16 +51,20 @@ final class Bulk_Actions {
 					$ids[] = $id;
 				}
 			}
-			Syndication::process_queue(); // push now (also runs on shutdown as backup)
-			// Surface failures rather than silently reporting success.
-			$err = 0;
+			Syndication::process_queue(); // push this batch now; overflow drains via cron.
+			// Report ACTUAL outcomes: published / failed / still-queued (deferred).
+			$ok = 0; $err = 0;
 			foreach ( $ids as $id ) {
-				$state = Event::get( $id ) ? Event::get( $id )->published_to( 'eventbrite' ) : [];
-				if ( 'error' === ( $state['status'] ?? '' ) ) {
+				$e     = Event::get( $id );
+				$state = $e ? $e->published_to( 'eventbrite' ) : [];
+				if ( 'published' === ( $state['status'] ?? '' ) ) {
+					$ok++;
+				} elseif ( 'error' === ( $state['status'] ?? '' ) ) {
 					$err++;
 				}
 			}
-			return add_query_arg( [ 'gasf_eb_queued' => count( $ids ), 'gasf_eb_err' => $err ], $redirect );
+			$deferred = max( 0, count( $ids ) - $ok - $err );
+			return add_query_arg( [ 'gasf_eb_ok' => $ok, 'gasf_eb_err' => $err, 'gasf_eb_deferred' => $deferred ], $redirect );
 		}
 		return $redirect;
 	}
@@ -72,6 +76,12 @@ final class Bulk_Actions {
 		nocache_headers();
 		header( 'Content-Type: text/csv; charset=utf-8' );
 		header( 'Content-Disposition: attachment; filename="gasf-events-' . gmdate( 'Ymd' ) . '.csv"' );
+		// Neutralize spreadsheet formula injection: feed/author-controlled text
+		// (title, venue, …) starting with = + - @ tab/CR executes in Excel/Sheets.
+		$safe = static function ( $v ): string {
+			$v = (string) $v;
+			return preg_match( '/^[=+\-@\t\r]/', $v ) ? "'" . $v : $v;
+		};
 		$out = fopen( 'php://output', 'w' );
 		fputcsv( $out, [ 'ID', 'Title', 'Added', 'Start', 'End', 'All day', 'Status', 'Source', 'Venue', 'URL', 'Views', 'Eventbrite URL' ] );
 		foreach ( $ids as $id ) {
@@ -82,17 +92,17 @@ final class Bulk_Actions {
 			$v = $e->venue();
 			fputcsv( $out, [
 				$e->id(),
-				$e->title(),
+				$safe( $e->title() ),
 				get_post_time( 'Y-m-d', false, $e->post() ),
 				$e->start() ? $e->start()->format( 'Y-m-d H:i' ) : '',
 				$e->end() ? $e->end()->format( 'Y-m-d H:i' ) : '',
 				$e->is_all_day() ? 'yes' : 'no',
 				$e->status() ?: 'scheduled',
 				$e->source(),
-				$v['name'] ?? '',
-				$e->permalink(),
+				$safe( $v['name'] ?? '' ),
+				$safe( $e->permalink() ),
 				$e->views(),
-				$e->eventbrite_url(),
+				$safe( $e->eventbrite_url() ),
 			] );
 		}
 		fclose( $out ); // phpcs:ignore
@@ -112,19 +122,22 @@ final class Bulk_Actions {
 	}
 
 	public function notices(): void {
-		if ( ! isset( $_GET['gasf_eb_queued'] ) ) {
+		if ( ! isset( $_GET['gasf_eb_ok'] ) && ! isset( $_GET['gasf_eb_err'] ) && ! isset( $_GET['gasf_eb_deferred'] ) ) {
 			return;
 		}
-		$n   = (int) $_GET['gasf_eb_queued'];
-		$err = isset( $_GET['gasf_eb_err'] ) ? (int) $_GET['gasf_eb_err'] : 0;
-		printf(
-			'<div class="notice notice-info is-dismissible"><p>%s</p></div>',
-			esc_html( sprintf( /* translators: %d events */ _n( '%d event published to Eventbrite.', '%d events published to Eventbrite.', $n, 'gasf-events' ), $n ) )
-		);
+		$ok       = isset( $_GET['gasf_eb_ok'] ) ? (int) $_GET['gasf_eb_ok'] : 0;
+		$err      = isset( $_GET['gasf_eb_err'] ) ? (int) $_GET['gasf_eb_err'] : 0;
+		$deferred = isset( $_GET['gasf_eb_deferred'] ) ? (int) $_GET['gasf_eb_deferred'] : 0;
+
+		$msg = sprintf( /* translators: %d events */ _n( '%d event published to Eventbrite.', '%d events published to Eventbrite.', $ok, 'gasf-events' ), $ok );
+		if ( $deferred > 0 ) {
+			$msg .= ' ' . sprintf( /* translators: %d events */ _n( '%d more queued (processing in the background).', '%d more queued (processing in the background).', $deferred, 'gasf-events' ), $deferred );
+		}
+		printf( '<div class="notice notice-info is-dismissible"><p>%s</p></div>', esc_html( $msg ) );
 		if ( $err > 0 ) {
 			printf(
 				'<div class="notice notice-error is-dismissible"><p>%s</p></div>',
-				esc_html( sprintf( /* translators: %d events */ _n( '%d event failed to publish — see its Eventbrite column for the error.', '%d events failed to publish — see the Eventbrite column for details.', $err, 'gasf-events' ), $err ) )
+				esc_html( sprintf( /* translators: %d events */ _n( '%d event failed to publish — see the Eventbrite column for the error.', '%d events failed to publish — see the Eventbrite column for details.', $err, 'gasf-events' ), $err ) )
 			);
 		}
 	}

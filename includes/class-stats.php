@@ -46,6 +46,14 @@ final class Stats {
 		if ( $ua && preg_match( '/bot|crawl|spider|slurp|preview|facebookexternalhit/i', $ua ) ) {
 			return new \WP_REST_Response( [ 'ok' => true, 'counted' => false ] );
 		}
+		// Global per-minute cap — bounds count-inflation amplification and the
+		// growth of the per-viewer dedup transients on a shared host.
+		$bucket = 'gasf_vrate_' . (int) floor( time() / MINUTE_IN_SECONDS );
+		$rate   = (int) get_transient( $bucket );
+		if ( $rate >= 300 ) {
+			return new \WP_REST_Response( [ 'ok' => true, 'counted' => false ] );
+		}
+		set_transient( $bucket, $rate + 1, 2 * MINUTE_IN_SECONDS );
 		// Dedup on IP + event only — NOT the client-controlled UA (which could be
 		// rotated to bypass the throttle and bloat the transient table).
 		$ip          = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '';

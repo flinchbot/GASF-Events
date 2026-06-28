@@ -121,6 +121,7 @@ final class Plugin {
 	 */
 	public static function deactivate(): void {
 		wp_clear_scheduled_hook( 'gasf_events_sync' );
+		wp_clear_scheduled_hook( 'gasf_events_drain' );
 		flush_rewrite_rules();
 	}
 }

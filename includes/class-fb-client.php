@@ -41,7 +41,13 @@ final class FB_Client {
 		$events = [];
 		$guard  = 0;
 		while ( $url && $guard++ < 10 ) {
-			$resp = wp_remote_get( $url, [ 'timeout' => 20 ] );
+			// SSRF guard: the first URL is built on our hardcoded Graph base, but the
+			// paginated `next` URL is server-chosen — pin it to the Graph host and
+			// block redirects to private/loopback ranges.
+			if ( 'graph.facebook.com' !== (string) wp_parse_url( $url, PHP_URL_HOST ) ) {
+				return [ 'events' => $events, 'error' => 'unexpected paging host' ];
+			}
+			$resp = wp_remote_get( $url, [ 'timeout' => 20, 'reject_unsafe_urls' => true ] );
 			if ( is_wp_error( $resp ) ) {
 				return [ 'events' => $events, 'error' => $resp->get_error_message() ];
 			}

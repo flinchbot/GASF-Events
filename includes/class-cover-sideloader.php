@@ -31,6 +31,17 @@ final class Cover_Sideloader {
 			return $thumb_id;
 		}
 
+		// SSRF guard: the cover URL comes from the (untrusted) Graph response, and
+		// download_url() does not apply reject_unsafe_urls. Covers always live on
+		// Facebook's CDN, so require https + an fbcdn/facebook host before fetching.
+		$host = (string) wp_parse_url( $url, PHP_URL_HOST );
+		$ok   = ( 'https' === wp_parse_url( $url, PHP_URL_SCHEME ) ) && (
+			str_ends_with( $host, '.fbcdn.net' ) || str_ends_with( $host, '.facebook.com' ) || str_ends_with( $host, '.fbsbx.com' )
+		);
+		if ( ! $ok || ! wp_http_validate_url( $url ) ) {
+			return 0;
+		}
+
 		require_once ABSPATH . 'wp-admin/includes/file.php';
 		require_once ABSPATH . 'wp-admin/includes/media.php';
 		require_once ABSPATH . 'wp-admin/includes/image.php';

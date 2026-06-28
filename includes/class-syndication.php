@@ -60,10 +60,13 @@ final class Syndication {
 
 	private static $queued_this_request = false;
 
+	const DRAIN_HOOK = 'gasf_events_drain';
+
 	public function register_hooks(): void {
 		add_action( 'save_post_' . GASF_EVENTS_CPT, [ $this, 'on_save' ], 99, 1 );
 		add_action( 'transition_post_status', [ $this, 'on_transition' ], 10, 3 );
 		add_action( 'shutdown', [ $this, 'maybe_process' ] );
+		add_action( self::DRAIN_HOOK, [ self::class, 'process_queue' ] );
 	}
 
 	/* ---- intent + queue ----------------------------------------------- */
@@ -133,6 +136,10 @@ final class Syndication {
 				// Isolate one event's failure from the rest of the batch.
 				continue;
 			}
+		}
+		// Schedule a follow-up tick to drain anything beyond this request's cap.
+		if ( $remaining && ! wp_next_scheduled( self::DRAIN_HOOK ) ) {
+			wp_schedule_single_event( time() + 60, self::DRAIN_HOOK );
 		}
 	}
 
