@@ -103,21 +103,28 @@
 .gasf-upcoming__time { opacity:.7; min-width:5em; }
 .gasf-upcoming__name { flex:1; }
 
-/* ---- Home agenda (matches the old MEC modern-list home block #12976) ----
-   Pulls the site's own theme variables so it tracks MEC exactly: turquoise date,
-   pink event-name links, amber hover, Germania One display title. Each var has a
-   literal fallback if the theme tokens aren't in scope. */
-.gasf-home { --home-date:var(--of-turquoise,#00ced1); --home-link:var(--of-pink,#ff6b6b); --home-hover:var(--of-amber,#ffaa00); }
+/* ---- Home agenda (replaces the old MEC modern-list home block #12976) ----
+   Self-contained: GASF Events owns these tokens outright — no dependency on the
+   theme's MEC-era variables (--of-pink / --of-turquoise), which will rightly be
+   removed once MEC is gone. Values match the club brand today; to re-theme the
+   home list, edit the four tokens here. (Germania One is the site's display
+   webfont, loaded globally by the theme; we fall back to Georgia/serif.) */
+.gasf-home {
+	--gasf-home-date:#00ced1;                          /* date text (turquoise) */
+	--gasf-home-link:#ff6b6b;                          /* event-name link (pink) */
+	--gasf-home-link-hover:#ffaa00;                    /* event-name hover (amber) */
+	--gasf-home-font:"Germania One","Georgia",serif;   /* title display face */
+}
 .gasf-home__item { display:flex; gap:18px; align-items:flex-start; padding:14px 2px; border-bottom:1px solid var(--gasf-border); }
 .gasf-home__item:last-child { border-bottom:0; }
 .gasf-home__date { flex:none; width:104px; text-decoration:none; line-height:1.04; padding-top:2px; }
-.gasf-home__day { display:inline-block; font-size:2.9rem; font-weight:800; color:var(--home-date); }
-.gasf-home__mon { display:inline-block; margin-left:4px; font-size:.85rem; font-weight:700; font-style:italic; text-transform:uppercase; letter-spacing:.03em; color:var(--home-date); }
-.gasf-home__dow { display:block; font-size:1.15rem; font-weight:700; text-transform:uppercase; letter-spacing:.02em; white-space:nowrap; color:var(--home-date); }
+.gasf-home__day { display:inline-block; font-size:2.9rem; font-weight:800; color:var(--gasf-home-date); }
+.gasf-home__mon { display:inline-block; margin-left:4px; font-size:.85rem; font-weight:700; font-style:italic; text-transform:uppercase; letter-spacing:.03em; color:var(--gasf-home-date); }
+.gasf-home__dow { display:block; font-size:1.15rem; font-weight:700; text-transform:uppercase; letter-spacing:.02em; white-space:nowrap; color:var(--gasf-home-date); }
 .gasf-home__body { flex:1; min-width:0; }
-.gasf-home__title { margin:0 0 5px; font-family:var(--font-display,"Germania One","Georgia",serif); font-size:1.7rem; line-height:1.18; }
-.gasf-home__title a { text-decoration:none; color:var(--home-link); transition:color .3s ease; }
-.gasf-home__title a:hover { color:var(--home-hover); }
+.gasf-home__title { margin:0 0 5px; font-family:var(--gasf-home-font); font-size:1.7rem; line-height:1.18; }
+.gasf-home__title a { text-decoration:none; color:var(--gasf-home-link); transition:color .3s ease; }
+.gasf-home__title a:hover { color:var(--gasf-home-link-hover); }
 .gasf-home__meta { margin:0; opacity:.7; font-size:1rem; }
 @media (max-width:560px){ .gasf-home__item{ gap:12px; } .gasf-home__date{ width:84px; } .gasf-home__day{ font-size:2.3rem; } .gasf-home__dow{ font-size:.95rem; } .gasf-home__title{ font-size:1.3rem; } }
 
