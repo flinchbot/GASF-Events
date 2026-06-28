@@ -252,6 +252,21 @@ final class Meta_Box {
 		// The FB sync pin (only meaningful for FB-sourced events).
 		if ( (string) get_post_meta( $post_id, Meta::FB_EVENT_ID, true ) ) {
 			update_post_meta( $post_id, Meta::SYNC_LOCKED, empty( $_POST['gasf_sync_locked'] ) ? 0 : 1 );
+
+			// Auto-pin on edit: if the maintainer changed a synced field but left the
+			// pin off, pin it anyway so their edit isn't reverted by the next sync.
+			if ( empty( $_POST['gasf_sync_locked'] ) ) {
+				$snap = (string) get_post_meta( $post_id, Meta::FB_SNAPSHOT, true );
+				$now  = FB_Importer::snapshot(
+					(string) get_post_field( 'post_title', $post_id ),
+					(string) get_post_field( 'post_content', $post_id ),
+					(string) get_post_meta( $post_id, Meta::START, true ),
+					(string) get_post_meta( $post_id, Meta::END, true )
+				);
+				if ( '' !== $snap && $snap !== $now ) {
+					update_post_meta( $post_id, Meta::SYNC_LOCKED, 1 );
+				}
+			}
 		}
 
 		// Recurrence — only on a standalone/master event, never a generated occurrence,

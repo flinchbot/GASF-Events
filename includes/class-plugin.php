@@ -46,9 +46,13 @@ final class Plugin {
 		require_once $dir . 'class-shortcodes.php';
 		require_once $dir . 'class-single.php';
 		require_once $dir . 'class-print.php';
+		require_once $dir . 'class-fb-client.php';
+		require_once $dir . 'class-cover-sideloader.php';
+		require_once $dir . 'class-fb-importer.php';
 		if ( is_admin() ) {
 			require_once $dir . 'class-meta-box.php';
 			require_once $dir . 'class-admin-list.php';
+			require_once $dir . 'class-sync-admin.php';
 		}
 		if ( defined( 'WP_CLI' ) && WP_CLI ) {
 			require_once $dir . 'class-cli.php';
@@ -75,11 +79,13 @@ final class Plugin {
 		( new Shortcodes() )->register_hooks();
 		( new Single() )->register_hooks();
 		( new Print_View() )->register_hooks();
+		( new FB_Importer() )->register_hooks();
 
 		if ( is_admin() ) {
 			( new Meta_Box() )->register_hooks();
 			( new Admin_List() )->register_hooks();
 			( new Series() )->register_hooks();
+			( new Sync_Admin() )->register_hooks();
 		}
 
 		load_plugin_textdomain( 'gasf-events', false, dirname( plugin_basename( GASF_EVENTS_FILE ) ) . '/languages' );
@@ -102,6 +108,7 @@ final class Plugin {
 	 * Deactivation: flush rewrites so the CPT's rules are dropped cleanly.
 	 */
 	public static function deactivate(): void {
+		wp_clear_scheduled_hook( 'gasf_events_sync' );
 		flush_rewrite_rules();
 	}
 }

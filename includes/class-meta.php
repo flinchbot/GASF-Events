@@ -40,6 +40,7 @@ final class Meta {
 	const FB_COVER_ID  = '_gasf_fb_cover_id';   // string
 	const FB_MISSING   = '_gasf_fb_missing';    // int 0..2
 	const SYNC_LOCKED  = '_gasf_sync_locked';   // bool (the "pin")
+	const FB_SNAPSHOT  = '_gasf_fb_snapshot';   // hash of last FB-synced fields (auto-pin detection)
 
 	// Venue / organizer per-event overrides (defaults live in Settings).
 	const VENUE_OVERRIDE     = '_gasf_venue_override';     // array
