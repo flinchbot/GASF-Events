@@ -77,14 +77,8 @@ $more_is_fb = (bool) preg_match( '~(?:^|\.)(?:facebook\.com|fb\.(?:com|me|watch)
 				?>
 
 				<?php
-				// Welton Brewing "open before/after the event" note. Reuses the live
-				// GASF-Utilities [welton_status] shortcode (single source of Welton's
-				// hours) — we only CALL it and pass this event's times; never edit it.
-				if ( $start && shortcode_exists( 'welton_status' ) ) :
-					$w_sc = '[welton_status event_start="' . esc_attr( $start->format( 'Y-m-d H:i:s' ) ) . '"'
-						. ( $end ? ' event_end="' . esc_attr( $end->format( 'Y-m-d H:i:s' ) ) . '"' : '' ) . ']';
-					echo wp_kses_post( do_shortcode( $w_sc ) );
-				endif;
+				// Welton Brewing "open before/after the event" note — native + MEC-free.
+				echo wp_kses_post( Welton::blurb( $event ) );
 				?>
 
 				<?php if ( $more_url && ! $more_is_fb ) : ?>

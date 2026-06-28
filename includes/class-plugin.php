@@ -44,6 +44,7 @@ final class Plugin {
 		require_once $dir . 'class-add-to-calendar.php';
 		require_once $dir . 'class-schema.php';
 		require_once $dir . 'class-shortcodes.php';
+		require_once $dir . 'class-welton.php';
 		require_once $dir . 'class-single.php';
 		require_once $dir . 'class-print.php';
 		require_once $dir . 'class-fb-client.php';
@@ -85,6 +86,7 @@ final class Plugin {
 		( new Add_To_Calendar() )->register_hooks();
 		( new Schema() )->register_hooks();
 		( new Shortcodes() )->register_hooks();
+		( new Welton() )->register_hooks();
 		( new Single() )->register_hooks();
 		( new Print_View() )->register_hooks();
 		( new Rest() )->register_hooks();
