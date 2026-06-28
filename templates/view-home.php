@@ -27,7 +27,7 @@ $tf = get_option( 'time_format' );
 			<a class="gasf-home__date" href="<?php echo esc_url( $e->permalink() ); ?>" aria-hidden="true" tabindex="-1">
 				<span class="gasf-home__day"><?php echo esc_html( $s ? wp_date( 'j', $e->start_ts() ) : '–' ); ?></span>
 				<span class="gasf-home__mon"><?php echo esc_html( $s ? wp_date( 'M', $e->start_ts() ) : '' ); ?></span>
-				<span class="gasf-home__dow"><?php echo esc_html( $s ? wp_date( 'D', $e->start_ts() ) : '' ); ?></span>
+				<span class="gasf-home__dow"><?php echo esc_html( $s ? wp_date( 'l', $e->start_ts() ) : '' ); ?></span>
 			</a>
 			<div class="gasf-home__body">
 				<h4 class="gasf-home__title">
