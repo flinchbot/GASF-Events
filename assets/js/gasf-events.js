@@ -24,6 +24,27 @@
 				go: function ( n ) { this.i = n; clearInterval( this.timer ); this.start(); },
 			};
 		} );
+
+		/* Month-grid event hover popup. */
+		window.Alpine.data( 'gasfCal', function () {
+			return {
+				pop: { show: false, title: '', time: '', img: '', excerpt: '', x: 0, y: 0, above: false },
+				_t: null,
+				show: function ( ev ) {
+					var el = ev.currentTarget, d = el.dataset, self = this;
+					clearTimeout( this._t );
+					this._t = setTimeout( function () {
+						var r = el.getBoundingClientRect();
+						var W = 300, H = 210, M = 8;
+						var above = r.top > H + 16;
+						var x = Math.min( Math.max( M, r.left + r.width / 2 - W / 2 ), window.innerWidth - W - M );
+						var y = above ? ( r.top - H - 10 ) : ( r.bottom + 10 );
+						self.pop = { show: true, title: d.title || '', time: d.time || '', img: d.img || '', excerpt: d.excerpt || '', x: Math.round( x ), y: Math.round( y ), above: above };
+					}, 90 );
+				},
+				hide: function () { clearTimeout( this._t ); this.pop.show = false; },
+			};
+		} );
 	} );
 
 	/* ---- QR codes (data-gasf-qr="<url>") ---- */
