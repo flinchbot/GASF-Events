@@ -38,9 +38,14 @@ final class Plugin {
 		require_once $dir . 'class-settings.php';
 		require_once $dir . 'class-recurrence.php';
 		require_once $dir . 'class-series.php';
+		require_once $dir . 'class-migrator.php';
 		if ( is_admin() ) {
 			require_once $dir . 'class-meta-box.php';
 			require_once $dir . 'class-admin-list.php';
+		}
+		if ( defined( 'WP_CLI' ) && WP_CLI ) {
+			require_once $dir . 'class-cli.php';
+			\WP_CLI::add_command( 'gasf-events', CLI::class );
 		}
 	}
 
