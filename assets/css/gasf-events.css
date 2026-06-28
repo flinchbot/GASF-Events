@@ -170,6 +170,10 @@
 .gasf-dot.is-on { background:#fff; }
 
 /* ---- Single event ---- */
+/* Contain the single-event page in a centred column with side gutters, so it
+   sits off the browser edges (it renders between the theme header/footer,
+   outside the theme's own content container). */
+.gasf-single { max-width:1160px; margin-inline:auto; padding:28px clamp(16px,4vw,34px) 56px; }
 .gasf-single__hero { position:relative; min-height:42vh; background-size:cover; background-position:center; display:flex; align-items:flex-end; border-radius:var(--gasf-radius); overflow:hidden; }
 .gasf-single__scrim { position:absolute; inset:0; background:linear-gradient(to top, rgba(0,0,0,.82), rgba(0,0,0,.15)); }
 .gasf-single__heroinner { position:relative; padding:6% 6%; color:#fff; }

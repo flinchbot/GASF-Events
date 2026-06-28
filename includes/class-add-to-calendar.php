@@ -160,7 +160,7 @@ final class Add_To_Calendar {
 		$lines = [
 			'BEGIN:VCALENDAR',
 			'VERSION:2.0',
-			'PRODID:-//German American Society//GASF Events//EN',
+			'PRODID:-//German-American Society//GASF Events//EN',
 			'CALSCALE:GREGORIAN',
 		];
 		foreach ( $events as $event ) {

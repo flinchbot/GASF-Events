@@ -24,7 +24,7 @@ final class Settings {
 
 	public static function venue(): array {
 		return wp_parse_args( (array) get_option( self::OPT_VENUE, [] ), [
-			'name'    => 'German American Society',
+			'name'    => 'German-American Society',
 			'street'  => '8098 66th Street North',
 			'city'    => 'Pinellas Park',
 			'state'   => 'FL',
@@ -38,7 +38,7 @@ final class Settings {
 
 	public static function organizer(): array {
 		return wp_parse_args( (array) get_option( self::OPT_ORGANIZER, [] ), [
-			'name' => 'German American Society',
+			'name' => 'German-American Society',
 			'url'  => home_url( '/' ),
 		] );
 	}
