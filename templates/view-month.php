@@ -75,19 +75,13 @@ $render_chip = static function ( Event $e ) {
 					$cell_events = $cell['events'];
 					$classes = 'gasf-day' . ( $cell['in_month'] ? '' : ' is-out' ) . ( $cell['is_today'] ? ' is-today' : '' );
 					?>
-					<div class="<?php echo esc_attr( $classes ); ?>" role="cell" x-data="{ open:false }">
+					<div class="<?php echo esc_attr( $classes ); ?>" role="cell">
 						<span class="gasf-day__num"><?php echo esc_html( $cell['date']->format( 'j' ) ); ?></span>
 						<?php if ( $cell_events ) : ?>
 							<ul class="gasf-day__events">
-								<?php foreach ( array_slice( $cell_events, 0, 3 ) as $e ) : ?>
+								<?php foreach ( $cell_events as $e ) : ?>
 									<li><?php $render_chip( $e ); ?></li>
 								<?php endforeach; ?>
-								<?php if ( count( $cell_events ) > 3 ) : ?>
-									<li x-show="!open"><button type="button" class="gasf-more" @click="open=true">+<?php echo (int) ( count( $cell_events ) - 3 ); ?> <?php esc_html_e( 'more', 'gasf-events' ); ?></button></li>
-									<?php foreach ( array_slice( $cell_events, 3 ) as $e ) : ?>
-										<li x-show="open" x-cloak><?php $render_chip( $e ); ?></li>
-									<?php endforeach; ?>
-								<?php endif; ?>
 							</ul>
 						<?php endif; ?>
 					</div>

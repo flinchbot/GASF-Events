@@ -39,9 +39,14 @@
 .gasf-day.is-today .gasf-day__num { color:var(--gasf-accent); }
 .gasf-day__num { font-weight:700; font-size:.85rem; }
 .gasf-day__events { list-style:none; margin:4px 0 0; padding:0; display:flex; flex-direction:column; gap:2px; min-width:0; }
-.gasf-chip { display:flex; gap:5px; align-items:flex-start; max-width:100%; box-sizing:border-box; font-size:.72rem; line-height:1.28; text-decoration:none; color:var(--gasf-text); padding:2px 4px; border-radius:5px; transition:transform .13s ease, box-shadow .13s ease, background-color .13s ease; }
+/* Kill theme-injected list bullets (list-style:none alone misses ::before bullets). */
+.gasf-day__events li { list-style:none; margin:0; padding:0; }
+.gasf-day__events li::before, .gasf-day__events li::marker { content:none !important; display:none !important; }
+.gasf-chip { display:flex; gap:5px; align-items:flex-start; max-width:100%; box-sizing:border-box; font-size:.72rem; line-height:1.28; text-decoration:none; padding:2px 4px; border-radius:5px; transition:transform .13s ease, box-shadow .13s ease, background-color .13s ease; }
 .gasf-chip__icon { flex:none; font-size:.92em; line-height:1.35; }
-.gasf-chip__text { min-width:0; overflow-wrap:anywhere; }
+/* Explicit color on the text span so the theme's a:hover can't recolor it. */
+.gasf-chip__text { min-width:0; overflow-wrap:anywhere; color:var(--gasf-text); }
+.gasf-chip__text b { color:var(--gasf-text); font-weight:700; }
 .gasf-chip:hover, .gasf-chip:focus-visible { background:#fff; transform:translateX(2px); box-shadow:0 3px 12px rgba(0,0,0,.18); outline:none; position:relative; z-index:3; }
 .gasf-chip--cancelled .gasf-chip__text { text-decoration:line-through; opacity:.7; }
 .gasf-chip--postponed .gasf-chip__icon { filter:grayscale(.4); }
