@@ -68,12 +68,17 @@ $render_chip = static function ( Event $e ) {
 				<span role="columnheader"><?php echo esc_html( $wd ); ?></span>
 			<?php endforeach; ?>
 		</div>
-		<?php foreach ( $weeks as $week ) : ?>
+		<?php $cidx = 0; foreach ( $weeks as $week ) : ?>
 			<div class="gasf-grid__week" role="row">
 				<?php foreach ( $week as $cell ) :
 					/** @var Event[] $cell_events */
 					$cell_events = $cell['events'];
 					$classes = 'gasf-day' . ( $cell['in_month'] ? '' : ' is-out' ) . ( $cell['is_today'] ? ' is-today' : '' );
+					// Each in-month day gets its own colour from the palette (today stays gold).
+					if ( $cell['in_month'] ) {
+						$classes .= ' gasf-c' . ( ( $cidx % 8 ) + 1 );
+						$cidx++;
+					}
 					?>
 					<div class="<?php echo esc_attr( $classes ); ?>" role="cell">
 						<span class="gasf-day__num"><?php echo esc_html( $cell['date']->format( 'j' ) ); ?></span>

@@ -31,14 +31,20 @@
 .gasf-grid__week { display:grid; grid-template-columns:repeat(7, minmax(0, 1fr)); gap:4px; margin-bottom:4px; }
 /* overflow:visible so the chip's hover lift/shadow isn't clipped by the cell;
    layout is constrained by the grid columns + per-chip wrapping, not the cell. */
-.gasf-day { min-width:0; min-height:96px; overflow:visible; border:1px solid var(--gasf-border); border-radius:var(--gasf-radius); padding:5px 6px; background:var(--gasf-surface); color:var(--gasf-text); transition:transform .14s ease, border-color .14s ease, box-shadow .14s ease; }
-.gasf-day:hover { transform:translateY(-3px); border-color:var(--gasf-accent); box-shadow:0 9px 22px rgba(0,0,0,.16); position:relative; z-index:2; }
+.gasf-day { --d-color:#b9b3a6; min-width:0; min-height:96px; overflow:visible; border:1px solid var(--gasf-border); border-color:color-mix(in srgb, var(--d-color) 42%, #fff); border-radius:var(--gasf-radius); padding:5px 6px; background:var(--gasf-surface); color:var(--gasf-text); transition:transform .14s ease, border-color .14s ease, box-shadow .14s ease; }
+.gasf-day:hover { transform:translateY(-3px); border-color:var(--d-color); box-shadow:0 9px 22px rgba(0,0,0,.16); position:relative; z-index:2; }
 .gasf-day.is-out { background:#faf9f6; }
-.gasf-day.is-out .gasf-day__num { color:#c4c0b6; }
-.gasf-day.is-today { background:linear-gradient(180deg,#fff1d2,var(--gasf-surface) 72%); border-color:var(--gasf-accent); box-shadow:inset 0 0 0 2px var(--gasf-accent); }
-.gasf-day__num { display:inline-flex; align-items:center; justify-content:center; font-weight:700; font-size:.85rem; }
-/* "Today" gets a filled accent circle for the date number (Google-Calendar style). */
-.gasf-day.is-today .gasf-day__num { min-width:1.7em; height:1.7em; padding:0 .35em; border-radius:999px; background:var(--gasf-accent); color:#fff; box-shadow:0 2px 6px rgba(184,134,11,.45); }
+.gasf-day.is-out .gasf-day__num { color:#b3aea3; background:#f0eee9; }
+/* Per-tile color identity — palette drawn from the site's brand CSS. Cycled in PHP. */
+.gasf-c1{--d-color:#3a7d44} .gasf-c2{--d-color:#0f6e56} .gasf-c3{--d-color:#1e5fad} .gasf-c4{--d-color:#b22222}
+.gasf-c5{--d-color:#5f7d2f} .gasf-c6{--d-color:#1a3d7c} .gasf-c7{--d-color:#800000} .gasf-c8{--d-color:#455a78}
+/* Date-number badge: a soft highlight in the tile's color (today is the strong gold version below). */
+.gasf-day__num { display:inline-flex; align-items:center; justify-content:center; min-width:1.7em; height:1.7em; padding:0 .4em; border-radius:999px; font-weight:700; font-size:.85rem; color:var(--d-color); background:#eef0ec; background:color-mix(in srgb, var(--d-color) 15%, #fff); }
+@supports ( color: color-mix(in srgb, red, blue) ) { .gasf-day__num { color:color-mix(in srgb, var(--d-color) 82%, #1a1a1a); } }
+.gasf-day:hover .gasf-day__num { background:color-mix(in srgb, var(--d-color) 22%, #fff); }
+/* Today: strongest — filled gold circle + gold ring, so it still leads the eye. */
+.gasf-day.is-today { --d-color:#ef9f27; background:linear-gradient(180deg,#fff3da,var(--gasf-surface) 72%); border-color:var(--d-color); box-shadow:inset 0 0 0 2px var(--d-color); }
+.gasf-day.is-today .gasf-day__num { background:var(--d-color); color:#fff; box-shadow:0 2px 6px rgba(239,159,39,.5); }
 /* Events flush-left: override the theme's .entry-content ul/li indentation (higher specificity). */
 .gasf-cal ul.gasf-day__events { list-style:none; margin:5px 0 0; padding:0; display:flex; flex-direction:column; gap:2px; min-width:0; }
 .gasf-cal .gasf-day__events li { list-style:none; margin:0; padding:0; }
