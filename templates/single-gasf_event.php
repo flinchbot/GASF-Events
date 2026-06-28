@@ -71,10 +71,12 @@ $more_is_fb = (bool) preg_match( '~(?:^|\.)(?:facebook\.com|fb\.(?:com|me|watch)
 
 		<div class="gasf-single__grid">
 			<div class="gasf-single__content">
-				<?php
-				$content = apply_filters( 'the_content', $event->description() );
-				echo wp_kses_post( $content );
-				?>
+				<?php $desc = trim( (string) $event->description() ); ?>
+				<?php if ( '' !== $desc ) : ?>
+					<div class="gasf-single__desc" style="--e-color:<?php echo esc_attr( $event->color() ); ?>">
+						<?php echo wp_kses_post( apply_filters( 'the_content', $desc ) ); ?>
+					</div>
+				<?php endif; ?>
 
 				<?php
 				// Welton Brewing "open before/after the event" note — native + MEC-free.
