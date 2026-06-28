@@ -35,7 +35,7 @@ final class Google_Calendar {
 	 *
 	 * @return array{inserted:int,updated:int,deleted:int,error:string}
 	 */
-	public static function sync_source( string $label, string $calendar_id, array $events, bool $dry = false ): array {
+	public static function sync_source( string $feed_id, string $label, string $calendar_id, array $events, bool $dry = false ): array {
 		$out = [ 'inserted' => 0, 'updated' => 0, 'deleted' => 0, 'error' => '' ];
 		if ( '' === $calendar_id ) {
 			$out['error'] = 'no calendar_id';
@@ -47,7 +47,7 @@ final class Google_Calendar {
 			return $out;
 		}
 
-		$managed = self::list_managed( $calendar_id, $label, $token ); // uid => google event
+		$managed = self::list_managed( $calendar_id, $feed_id, $token ); // uid => google event
 		$seen    = [];
 		foreach ( $events as $ev ) {
 			$uid = (string) ( $ev['uid'] ?? '' );
@@ -55,7 +55,7 @@ final class Google_Calendar {
 				continue;
 			}
 			$seen[ $uid ] = true;
-			$body = self::build_body( $label, $ev );
+			$body = self::build_body( $feed_id, $label, $ev );
 			if ( isset( $managed[ $uid ] ) ) {
 				if ( self::differs( $managed[ $uid ], $body ) ) {
 					$out['updated']++;
@@ -155,12 +155,12 @@ final class Google_Calendar {
 		return new \WP_Error( 'gcal_api', 'exhausted retries' );
 	}
 
-	private static function list_managed( string $calendar_id, string $label, string $token ): array {
+	private static function list_managed( string $calendar_id, string $feed_id, string $token ): array {
 		$out  = [];
 		$page = '';
 		do {
 			$args = [
-				'privateExtendedProperty' => [ 'gasf_mgr=' . self::MGR, 'gasf_src=' . $label ],
+				'privateExtendedProperty' => [ 'gasf_mgr=' . self::MGR, 'gasf_src=' . $feed_id ],
 				'showDeleted'             => 'false',
 				'singleEvents'            => 'false',
 				'maxResults'              => 250,
@@ -176,7 +176,7 @@ final class Google_Calendar {
 			foreach ( (array) ( $resp['items'] ?? [] ) as $item ) {
 				$uid = $item['extendedProperties']['private']['gasf_uid'] ?? '';
 				if ( $uid ) {
-					$out[ $uid ] = [ 'id' => $item['id'], 'summary' => $item['summary'] ?? '', 'start' => $item['start'] ?? [], 'end' => $item['end'] ?? [] ];
+					$out[ $uid ] = [ 'id' => $item['id'], 'hash' => (string) ( $item['extendedProperties']['private']['gasf_hash'] ?? '' ) ];
 				}
 			}
 			$page = $resp['nextPageToken'] ?? '';
@@ -184,14 +184,13 @@ final class Google_Calendar {
 		return $out;
 	}
 
-	private static function build_body( string $label, array $ev ): array {
+	private static function build_body( string $feed_id, string $label, array $ev ): array {
 		$all_day = ! empty( $ev['all_day'] );
 		$tz      = wp_timezone_string();
 		$body    = [
-			'summary'            => '[' . $label . '] ' . wp_strip_all_tags( (string) ( $ev['title'] ?? '' ) ),
-			'description'        => (string) ( $ev['description'] ?? '' ),
-			'location'           => (string) ( $ev['location'] ?? '' ),
-			'extendedProperties' => [ 'private' => [ 'gasf_mgr' => self::MGR, 'gasf_src' => $label, 'gasf_uid' => (string) ( $ev['uid'] ?? '' ) ] ],
+			'summary'     => '[' . $label . '] ' . wp_strip_all_tags( (string) ( $ev['title'] ?? '' ) ),
+			'description' => (string) ( $ev['description'] ?? '' ),
+			'location'    => (string) ( $ev['location'] ?? '' ),
 		];
 		if ( $all_day ) {
 			$body['start'] = [ 'date' => substr( (string) $ev['start'], 0, 10 ) ];
@@ -203,15 +202,16 @@ final class Google_Calendar {
 		if ( ! empty( $ev['rrule'] ) ) {
 			$body['recurrence'] = [ 'RRULE:' . $ev['rrule'] ];
 		}
+		// Content hash over everything we sync, so updates to description/location/
+		// rrule (not just summary/time) are detected. Scope on the stable feed id.
+		$hash = md5( wp_json_encode( [ $body['summary'], $body['description'], $body['location'], $body['start'], $body['end'], $body['recurrence'] ?? [] ] ) );
+		$body['extendedProperties'] = [ 'private' => [ 'gasf_mgr' => self::MGR, 'gasf_src' => $feed_id, 'gasf_uid' => (string) ( $ev['uid'] ?? '' ), 'gasf_hash' => $hash ] ];
 		return $body;
 	}
 
 	private static function differs( array $existing, array $body ): bool {
-		if ( ( $existing['summary'] ?? '' ) !== ( $body['summary'] ?? '' ) ) {
-			return true;
-		}
-		return self::dt_key( $existing['start'] ?? [] ) !== self::dt_key( $body['start'] ?? [] )
-			|| self::dt_key( $existing['end'] ?? [] ) !== self::dt_key( $body['end'] ?? [] );
+		$new_hash = $body['extendedProperties']['private']['gasf_hash'] ?? '';
+		return ( $existing['hash'] ?? '' ) !== $new_hash;
 	}
 
 	private static function dt_key( array $dt ): string {

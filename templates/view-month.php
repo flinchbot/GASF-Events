@@ -57,11 +57,9 @@ $weekdays  = [ __( 'Sun', 'gasf-events' ), __( 'Mon', 'gasf-events' ), __( 'Tue'
 								<?php endforeach; ?>
 								<?php if ( count( $cell_events ) > 3 ) : ?>
 									<li x-show="!open"><button type="button" class="gasf-more" @click="open=true">+<?php echo (int) ( count( $cell_events ) - 3 ); ?> <?php esc_html_e( 'more', 'gasf-events' ); ?></button></li>
-									<div x-show="open" x-cloak>
-										<?php foreach ( array_slice( $cell_events, 3 ) as $e ) : ?>
-											<a class="gasf-chip gasf-chip--<?php echo esc_attr( $e->status() ?: 'scheduled' ); ?>" href="<?php echo esc_url( $e->permalink() ); ?>"><?php echo esc_html( $e->title() ); ?></a>
-										<?php endforeach; ?>
-									</div>
+									<?php foreach ( array_slice( $cell_events, 3 ) as $e ) : ?>
+										<li x-show="open" x-cloak><a class="gasf-chip gasf-chip--<?php echo esc_attr( $e->status() ?: 'scheduled' ); ?>" href="<?php echo esc_url( $e->permalink() ); ?>"><?php echo esc_html( $e->title() ); ?></a></li>
+									<?php endforeach; ?>
 								<?php endif; ?>
 							</ul>
 						<?php endif; ?>

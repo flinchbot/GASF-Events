@@ -46,7 +46,10 @@ final class Stats {
 		if ( $ua && preg_match( '/bot|crawl|spider|slurp|preview|facebookexternalhit/i', $ua ) ) {
 			return new \WP_REST_Response( [ 'ok' => true, 'counted' => false ] );
 		}
-		$fingerprint = md5( ( $_SERVER['REMOTE_ADDR'] ?? '' ) . '|' . $ua . '|' . $id );
+		// Dedup on IP + event only — NOT the client-controlled UA (which could be
+		// rotated to bypass the throttle and bloat the transient table).
+		$ip          = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '';
+		$fingerprint = md5( $ip . '|' . $id );
 		$tkey        = 'gasf_v_' . $fingerprint;
 		if ( get_transient( $tkey ) ) {
 			return new \WP_REST_Response( [ 'ok' => true, 'counted' => false ] );

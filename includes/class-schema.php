@@ -61,8 +61,12 @@ final class Schema {
 			'url'         => $event->permalink(),
 			'startDate'   => $event->start_iso(),
 			'eventStatus' => self::status_url( $event->status() ),
-			'image'       => [ $event->cover_url( 'full' ) ],
 		];
+		// Only emit a RASTER image — Google rejects SVG; omit rather than emit invalid.
+		$img = $event->schema_image();
+		if ( '' !== $img ) {
+			$node['image'] = [ $img ];
+		}
 		if ( $end ) {
 			$node['endDate'] = $event->end_iso();
 		}

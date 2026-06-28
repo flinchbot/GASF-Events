@@ -88,7 +88,7 @@ final class Feeds {
 			return $stats;
 		}
 		if ( ! $dry ) {
-			set_transient( self::LOCK, 1, 10 * MINUTE_IN_SECONDS );
+			set_transient( self::LOCK, 1, 30 * MINUTE_IN_SECONDS );
 		}
 		$gcal = self::gcal();
 
@@ -115,12 +115,17 @@ final class Feeds {
 					}
 					$seen[] = Event_Ingest::key( $source, (string) $ev['uid'] );
 				}
-				$stats['drafted'] += Event_Ingest::prune_missing( (string) $feed['id'], $seen, $dry );
+				// Fail-safe: a successful-but-EMPTY fetch is inconclusive, never a
+				// signal to draft the whole feed. Only prune when we saw events.
+				if ( $fetch['events'] ) {
+					$stats['drafted'] += Event_Ingest::prune_missing( (string) $feed['id'], $seen, $dry );
+				}
 			}
 
-			// Destination: Google Calendar.
+			// Destination: Google Calendar. Scope on the STABLE feed id (not the
+			// editable label) so renaming a feed doesn't orphan + duplicate.
 			if ( ! empty( $feed['dest_google'] ) && $gcal['calendar_id'] && Google_Calendar::available() ) {
-				$g = Google_Calendar::sync_source( (string) ( $feed['label'] ?? $feed['id'] ), $gcal['calendar_id'], $fetch['events'], $dry );
+				$g = Google_Calendar::sync_source( (string) $feed['id'], (string) ( $feed['label'] ?? $feed['id'] ), $gcal['calendar_id'], $fetch['events'], $dry );
 				if ( '' !== $g['error'] ) {
 					$stats['errors'][] = ( $fstat['label'] . ' (google): ' . $g['error'] );
 				} else {
@@ -147,7 +152,9 @@ final class Feeds {
 	 */
 	private static function fetch_feed( array $feed ): array {
 		if ( 'ics' === ( $feed['type'] ?? '' ) ) {
-			$resp = wp_remote_get( (string) ( $feed['url'] ?? '' ), [ 'timeout' => 30 ] );
+			// reject_unsafe_urls blocks redirects to private/loopback hosts (SSRF) on
+			// the admin-supplied feed URL.
+			$resp = wp_remote_get( (string) ( $feed['url'] ?? '' ), [ 'timeout' => 30, 'reject_unsafe_urls' => true ] );
 			if ( is_wp_error( $resp ) ) {
 				return [ 'events' => [], 'error' => $resp->get_error_message() ];
 			}

@@ -23,6 +23,18 @@ final class Post_Type {
 	public function register_hooks(): void {
 		add_action( 'init', [ $this, 'register_post_type' ] );
 		add_action( 'init', [ Meta::class, 'register' ] );
+		add_action( 'admin_init', [ $this, 'maybe_grant_caps' ] );
+	}
+
+	/**
+	 * Self-heal capabilities on version change — covers git-pull updates that
+	 * never re-run activation, and roles added after install.
+	 */
+	public function maybe_grant_caps(): void {
+		if ( get_option( 'gasf_events_caps_ver' ) !== GASF_EVENTS_VERSION ) {
+			self::grant_caps();
+			update_option( 'gasf_events_caps_ver', GASF_EVENTS_VERSION, false );
+		}
 	}
 
 	public function register_post_type(): void {

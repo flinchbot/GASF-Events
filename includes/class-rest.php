@@ -95,6 +95,8 @@ final class Rest {
 
 	/** Normalized event JSON — the stable contract. */
 	public function to_json( Event $e ): array {
+		$v = $e->venue();
+		$o = $e->organizer();
 		return [
 			'id'          => $e->id(),
 			'title'       => $e->title(),
@@ -106,8 +108,19 @@ final class Rest {
 			'status'      => $e->status() ?: 'scheduled',
 			'image'       => $e->cover_url( 'large' ),
 			'description' => wp_strip_all_tags( $e->description() ),
-			'organizer'   => $e->organizer(),
-			'venue'       => $e->venue(),
+			// Explicit whitelist — keep internal flags (hide_map, etc.) out of the
+			// public contract and make future admin-only fields additive-safe.
+			'organizer'   => [ 'name' => $o['name'] ?? '', 'url' => $o['url'] ?? '' ],
+			'venue'       => [
+				'name'    => $v['name'] ?? '',
+				'street'  => $v['street'] ?? '',
+				'city'    => $v['city'] ?? '',
+				'state'   => $v['state'] ?? '',
+				'zip'     => $v['zip'] ?? '',
+				'country' => $v['country'] ?? '',
+				'lat'     => $v['lat'] ?? '',
+				'lng'     => $v['lng'] ?? '',
+			],
 			'series_id'   => $e->series_id(),
 			'source'      => $e->source(),
 			'modified'    => get_post_modified_time( 'c', true, $e->post() ),

@@ -49,13 +49,19 @@
 				var next = doc.querySelector( '[data-gasf-cal]' );
 				var cur = document.querySelector( '[data-gasf-cal]' );
 				if ( ! next || ! cur ) { window.location.href = url; return; }
-				var apply = function () { cur.replaceWith( next ); renderQR( document ); };
+				var apply = function () {
+					cur.replaceWith( next );
+					// Initialize Alpine on the freshly inserted (foreign-document) subtree
+					// so the "+N more" toggles work after navigation; then render QRs.
+					if ( window.Alpine && window.Alpine.initTree ) { window.Alpine.initTree( next ); }
+					renderQR( document );
+					window.history.pushState( {}, '', url );
+				};
 				if ( document.startViewTransition ) {
 					document.startViewTransition( apply );
 				} else {
 					apply();
 				}
-				window.history.pushState( {}, '', url );
 			} )
 			.catch( function () { window.location.href = url; } );
 	}

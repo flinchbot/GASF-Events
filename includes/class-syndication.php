@@ -112,14 +112,27 @@ final class Syndication {
 
 	/* ---- processing --------------------------------------------------- */
 
+	/** Each destination push is up to 3 blocking HTTP calls; cap per request so
+	 *  a large batch can't exceed max_execution_time. Leftovers drain next run. */
+	const BATCH = 25;
+
 	public static function process_queue(): void {
 		$q = (array) get_option( self::QUEUE, [] );
 		if ( ! $q ) {
 			return;
 		}
-		update_option( self::QUEUE, [], false );
-		foreach ( array_keys( $q ) as $post_id ) {
-			self::reconcile( (int) $post_id );
+		$ids       = array_keys( $q );
+		$batch     = array_slice( $ids, 0, self::BATCH );
+		$remaining = array_slice( $ids, self::BATCH );
+		// Persist the remainder so a fatal mid-batch doesn't lose the whole queue.
+		update_option( self::QUEUE, array_fill_keys( $remaining, true ), false );
+		foreach ( $batch as $post_id ) {
+			try {
+				self::reconcile( (int) $post_id );
+			} catch ( \Throwable $e ) {
+				// Isolate one event's failure from the rest of the batch.
+				continue;
+			}
 		}
 	}
 

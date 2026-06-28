@@ -174,6 +174,29 @@ final class Event {
 		return Settings::default_image_url( $size );
 	}
 
+	/**
+	 * A RASTER image URL suitable for schema.org `image`, or '' if only the
+	 * bundled SVG placeholder is available (Google rich results reject SVG —
+	 * better to omit `image` than emit an invalid one). Admins should set a
+	 * real default image in Settings.
+	 */
+	public function schema_image(): string {
+		if ( has_post_thumbnail( $this->post ) ) {
+			$url = get_the_post_thumbnail_url( $this->post, 'full' );
+			if ( $url ) {
+				return $url;
+			}
+		}
+		$id = Settings::default_image_id();
+		if ( $id ) {
+			$url = wp_get_attachment_image_url( $id, 'full' );
+			if ( $url ) {
+				return $url;
+			}
+		}
+		return '';
+	}
+
 	/* ---- Venue / organizer (settings + per-event override) ------------ */
 
 	public function venue(): array {

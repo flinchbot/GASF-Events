@@ -122,7 +122,7 @@ final class Meta {
 				'single'            => true,
 				'show_in_rest'      => false,
 				'sanitize_callback' => 'sanitize_text_field',
-				'auth_callback'     => static fn() => current_user_can( 'edit_gasf_events' ),
+				'auth_callback'     => static fn( $a, $mk, $oid ) => current_user_can( 'edit_post', (int) $oid ),
 			] );
 		}
 
@@ -133,7 +133,7 @@ final class Meta {
 				'single'            => true,
 				'show_in_rest'      => false,
 				'sanitize_callback' => 'absint',
-				'auth_callback'     => static fn() => current_user_can( 'edit_gasf_events' ),
+				'auth_callback'     => static fn( $a, $mk, $oid ) => current_user_can( 'edit_post', (int) $oid ),
 			] );
 		}
 
@@ -144,7 +144,7 @@ final class Meta {
 				'single'            => true,
 				'show_in_rest'      => false,
 				'sanitize_callback' => static fn( $v ) => (bool) $v,
-				'auth_callback'     => static fn() => current_user_can( 'edit_gasf_events' ),
+				'auth_callback'     => static fn( $a, $mk, $oid ) => current_user_can( 'edit_post', (int) $oid ),
 			] );
 		}
 	}

@@ -56,6 +56,11 @@ final class Recurrence {
 				$cursor = $start->modify( '+' . ( $i * 2 ) . ' week' );
 			} else { // monthly: same Nth weekday in each subsequent month.
 				$month  = $start->modify( 'first day of +' . $i . ' month' );
+				// Honor `until` even when months are skipped (no Nth weekday): once the
+				// candidate month itself is past `until`, stop — don't spin to the cap.
+				if ( $month > $until_dt ) {
+					break;
+				}
 				$cursor = self::nth_weekday( (int) $month->format( 'Y' ), (int) $month->format( 'n' ), $weekday, $nth, $start->format( 'H:i:s' ) );
 				// $cursor may be null when that month has no Nth weekday (e.g. 5th) — skip it.
 			}

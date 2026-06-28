@@ -44,15 +44,23 @@ final class Bulk_Actions {
 			if ( ! current_user_can( 'edit_gasf_events' ) ) {
 				return $redirect;
 			}
-			$n = 0;
+			$ids = [];
 			foreach ( $post_ids as $id ) {
 				if ( Event::get( $id ) ) {
 					Syndication::mark_for_publish( $id, 'eventbrite' );
-					$n++;
+					$ids[] = $id;
 				}
 			}
 			Syndication::process_queue(); // push now (also runs on shutdown as backup)
-			return add_query_arg( 'gasf_eb_queued', $n, $redirect );
+			// Surface failures rather than silently reporting success.
+			$err = 0;
+			foreach ( $ids as $id ) {
+				$state = Event::get( $id ) ? Event::get( $id )->published_to( 'eventbrite' ) : [];
+				if ( 'error' === ( $state['status'] ?? '' ) ) {
+					$err++;
+				}
+			}
+			return add_query_arg( [ 'gasf_eb_queued' => count( $ids ), 'gasf_eb_err' => $err ], $redirect );
 		}
 		return $redirect;
 	}
@@ -104,11 +112,19 @@ final class Bulk_Actions {
 	}
 
 	public function notices(): void {
-		if ( isset( $_GET['gasf_eb_queued'] ) ) {
-			$n = (int) $_GET['gasf_eb_queued'];
+		if ( ! isset( $_GET['gasf_eb_queued'] ) ) {
+			return;
+		}
+		$n   = (int) $_GET['gasf_eb_queued'];
+		$err = isset( $_GET['gasf_eb_err'] ) ? (int) $_GET['gasf_eb_err'] : 0;
+		printf(
+			'<div class="notice notice-info is-dismissible"><p>%s</p></div>',
+			esc_html( sprintf( /* translators: %d events */ _n( '%d event published to Eventbrite.', '%d events published to Eventbrite.', $n, 'gasf-events' ), $n ) )
+		);
+		if ( $err > 0 ) {
 			printf(
-				'<div class="notice notice-info is-dismissible"><p>%s</p></div>',
-				esc_html( sprintf( /* translators: %d events */ _n( '%d event queued for Eventbrite.', '%d events queued for Eventbrite.', $n, 'gasf-events' ), $n ) )
+				'<div class="notice notice-error is-dismissible"><p>%s</p></div>',
+				esc_html( sprintf( /* translators: %d events */ _n( '%d event failed to publish — see its Eventbrite column for the error.', '%d events failed to publish — see the Eventbrite column for details.', $err, 'gasf-events' ), $err ) )
 			);
 		}
 	}

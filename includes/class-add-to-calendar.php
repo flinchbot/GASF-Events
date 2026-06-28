@@ -51,13 +51,18 @@ final class Add_To_Calendar {
 		}
 
 		if ( 'all' === $mode ) {
-			// Upcoming + a short grace window; subscribers re-poll.
-			$events = Calendar::upcoming( 500, time() - 7 * DAY_IN_SECONDS );
+			// Cache the built feed (unauthenticated 500-row build otherwise runs on
+			// every poll). Invalidated by TTL; subscribers re-poll periodically.
+			$body = get_transient( 'gasf_ics_all' );
+			if ( false === $body ) {
+				$body = self::ics_document( Calendar::upcoming( 500, time() - 7 * DAY_IN_SECONDS ) );
+				set_transient( 'gasf_ics_all', $body, 15 * MINUTE_IN_SECONDS );
+			}
 			header( 'Content-Type: text/calendar; charset=utf-8' );
 			header( 'Content-Disposition: inline; filename="gasf-calendar.ics"' );
 			header( 'Cache-Control: public, max-age=900' );
 			header( 'X-WR-CALNAME: ' . get_bloginfo( 'name' ) . ' Events' );
-			echo self::ics_document( $events ); // phpcs:ignore WordPress.Security.EscapeOutput
+			echo $body; // phpcs:ignore WordPress.Security.EscapeOutput
 			exit;
 		}
 	}
@@ -186,7 +191,23 @@ final class Add_To_Calendar {
 			$lines[] = 'END:VEVENT';
 		}
 		$lines[] = 'END:VCALENDAR';
-		return implode( "\r\n", $lines ) . "\r\n";
+		return implode( "\r\n", array_map( [ self::class, 'fold' ], $lines ) ) . "\r\n";
+	}
+
+	/** RFC 5545 line folding: split content lines longer than 75 octets. */
+	private static function fold( string $line ): string {
+		if ( strlen( $line ) <= 75 ) {
+			return $line;
+		}
+		$out = '';
+		$pos = 0;
+		$len = strlen( $line );
+		while ( $pos < $len ) {
+			$chunk = substr( $line, $pos, 0 === $pos ? 75 : 74 );
+			$out  .= ( 0 === $pos ? '' : "\r\n " ) . $chunk;
+			$pos  += ( 0 === $pos ? 75 : 74 );
+		}
+		return $out;
 	}
 
 	/* ---- helpers ------------------------------------------------------ */

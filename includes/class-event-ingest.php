@@ -48,7 +48,9 @@ final class Event_Ingest {
 			'post_type'    => GASF_EVENTS_CPT,
 			'post_status'  => 'publish',
 			'post_title'   => wp_strip_all_tags( (string) $norm['title'] ),
-			'post_content' => (string) ( $norm['description'] ?? '' ),
+			// Remote (Facebook/ICS) HTML: sanitize here — cron has no user context so
+			// WP's own kses pass is unreliable; never store unfiltered remote markup.
+			'post_content' => wp_kses_post( (string) ( $norm['description'] ?? '' ) ),
 		];
 		$action = 'created';
 		if ( $existing ) {
@@ -84,7 +86,15 @@ final class Event_Ingest {
 			update_post_meta( $post_id, Meta::SERIES_ROLE, 'single' );
 		}
 
-		update_post_meta( $post_id, Meta::FB_SNAPSHOT, self::snapshot( $norm['title'], $norm['description'] ?? '', $start, $end ) );
+		// Snapshot from the STORED values (post-kses/slashing), reading exactly what
+		// the editor's auto-pin will read back — otherwise every synced event would
+		// self-pin on the first manual save due to entity/normalization drift.
+		update_post_meta( $post_id, Meta::FB_SNAPSHOT, self::snapshot(
+			(string) get_post_field( 'post_title', $post_id ),
+			(string) get_post_field( 'post_content', $post_id ),
+			(string) get_post_meta( $post_id, Meta::START, true ),
+			(string) get_post_meta( $post_id, Meta::END, true )
+		) );
 
 		if ( ! empty( $norm['cover_url'] ) ) {
 			Cover_Sideloader::sync( $post_id, (string) $norm['cover_url'], (string) ( $norm['cover_id'] ?? '' ) );
