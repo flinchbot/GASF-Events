@@ -55,8 +55,9 @@ final class Settings {
 				return $url;
 			}
 		}
-		// Last-resort placeholder bundled with the plugin (added in P4 display phase).
-		return GASF_EVENTS_URL . 'assets/img/event-default.jpg';
+		// Last-resort placeholder bundled with the plugin (admins should set a real
+		// default image in Settings; this guarantees an image always exists).
+		return GASF_EVENTS_URL . 'assets/img/event-default.svg';
 	}
 
 	public function add_settings_page(): void {

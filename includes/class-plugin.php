@@ -39,6 +39,13 @@ final class Plugin {
 		require_once $dir . 'class-recurrence.php';
 		require_once $dir . 'class-series.php';
 		require_once $dir . 'class-migrator.php';
+		require_once $dir . 'class-calendar.php';
+		require_once $dir . 'class-assets.php';
+		require_once $dir . 'class-add-to-calendar.php';
+		require_once $dir . 'class-schema.php';
+		require_once $dir . 'class-shortcodes.php';
+		require_once $dir . 'class-single.php';
+		require_once $dir . 'class-print.php';
 		if ( is_admin() ) {
 			require_once $dir . 'class-meta-box.php';
 			require_once $dir . 'class-admin-list.php';
@@ -62,6 +69,12 @@ final class Plugin {
 
 		( new Post_Type() )->register_hooks();
 		( new Settings() )->register_hooks();
+		( new Assets() )->register_hooks();
+		( new Add_To_Calendar() )->register_hooks();
+		( new Schema() )->register_hooks();
+		( new Shortcodes() )->register_hooks();
+		( new Single() )->register_hooks();
+		( new Print_View() )->register_hooks();
 
 		if ( is_admin() ) {
 			( new Meta_Box() )->register_hooks();

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-label="German American Society event">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1c1c1c"/>
+      <stop offset="1" stop-color="#3a3a3a"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="675" fill="url(#g)"/>
+  <g fill="none" stroke="#b8860b" stroke-width="3" opacity="0.85">
+    <rect x="430" y="250" width="340" height="240" rx="14"/>
+    <line x1="430" y1="315" x2="770" y2="315"/>
+    <line x1="510" y1="250" x2="510" y2="220"/>
+    <line x1="690" y1="250" x2="690" y2="220"/>
+  </g>
+  <text x="600" y="560" text-anchor="middle" font-family="Georgia, serif" font-size="34" fill="#f3efe6">German American Society</text>
+  <text x="600" y="605" text-anchor="middle" font-family="Arial, sans-serif" font-size="22" fill="#b8860b" letter-spacing="3">EVENT</text>
+</svg>
