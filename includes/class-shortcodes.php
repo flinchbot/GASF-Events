@@ -78,18 +78,51 @@ final class Shortcodes {
 
 		$first = ( new \DateTimeImmutable( sprintf( '%04d-%02d-01 00:00:00', $year, $mon ), $tz ) );
 		$last  = $first->modify( 'last day of this month' );
-		$events = Calendar::in_month( $year, $mon );
 
-		// Map events onto each day they cover (within the month).
+		// Build the (Sunday-started) grid skeleton first so we know the full
+		// visible date range. The grid spills into the previous/next month on
+		// the leading and trailing weeks; those adjacent-month days are still
+		// on screen, so they must show events too (an empty cell next to a busy
+		// one reads as "nothing happening" when something actually is).
+		$start_dow  = (int) $first->format( 'w' ); // 0=Sun
+		$grid_start = $first->modify( '-' . $start_dow . ' day' )->setTime( 0, 0 );
+		$today      = ( new \DateTimeImmutable( 'now', $tz ) )->format( 'Y-m-d' );
+
+		$weeks    = [];
+		$cursor   = $grid_start;
+		$grid_end = $cursor; // last visible day; updated as we fill the grid
+		for ( $w = 0; $w < 6; $w++ ) {
+			$row = [];
+			for ( $i = 0; $i < 7; $i++ ) {
+				$row[] = [
+					'date'     => $cursor,
+					'in_month' => ( (int) $cursor->format( 'n' ) === $mon ),
+					'is_today' => ( $cursor->format( 'Y-m-d' ) === $today ),
+					'events'   => [], // filled from the range query below
+				];
+				$grid_end = $cursor;
+				$cursor   = $cursor->modify( '+1 day' );
+			}
+			$weeks[] = $row;
+			if ( $cursor > $last && (int) $cursor->format( 'n' ) !== $mon ) {
+				break; // don't render a trailing all-next-month week
+			}
+		}
+
+		// Query every event overlapping the *visible grid* (not just the month)
+		// and map each onto every day it covers, clamped to the grid window.
+		$range_end = $grid_end->setTime( 23, 59, 59 );
+		$events    = Calendar::range( $grid_start->getTimestamp(), $range_end->getTimestamp() );
+
 		$by_day = [];
 		foreach ( $events as $e ) {
 			$s = $e->start();
-			$en = $e->end() ?: $s;
 			if ( ! $s ) {
 				continue;
 			}
-			$cur  = $s < $first ? $first : $s;
-			$stop = $en > $last ? $last : $en;
+			$en   = $e->end() ?: $s;
+			$cur  = $s < $grid_start ? $grid_start : $s;
+			$stop = $en > $range_end ? $range_end : $en;
 			$d    = $cur->setTime( 0, 0 );
 			while ( $d <= $stop ) {
 				$by_day[ $d->format( 'Y-m-d' ) ][] = $e;
@@ -97,27 +130,9 @@ final class Shortcodes {
 			}
 		}
 
-		// Build weeks (Sunday-started grid).
-		$start_dow = (int) $first->format( 'w' ); // 0=Sun
-		$grid_start = $first->modify( '-' . $start_dow . ' day' );
-		$weeks = [];
-		$cursor = $grid_start;
-		$today = ( new \DateTimeImmutable( 'now', $tz ) )->format( 'Y-m-d' );
-		for ( $w = 0; $w < 6; $w++ ) {
-			$row = [];
-			for ( $i = 0; $i < 7; $i++ ) {
-				$key = $cursor->format( 'Y-m-d' );
-				$row[] = [
-					'date'     => $cursor,
-					'in_month' => ( (int) $cursor->format( 'n' ) === $mon ),
-					'is_today' => ( $key === $today ),
-					'events'   => $by_day[ $key ] ?? [],
-				];
-				$cursor = $cursor->modify( '+1 day' );
-			}
-			$weeks[] = $row;
-			if ( $cursor > $last && (int) $cursor->format( 'n' ) !== $mon ) {
-				break; // don't render a trailing all-next-month week
+		foreach ( $weeks as $wi => $row ) {
+			foreach ( $row as $ci => $cell ) {
+				$weeks[ $wi ][ $ci ]['events'] = $by_day[ $cell['date']->format( 'Y-m-d' ) ] ?? [];
 			}
 		}
 
