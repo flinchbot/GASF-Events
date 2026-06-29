@@ -17,6 +17,7 @@ final class Shortcodes {
 		add_shortcode( 'gasf_events', [ $this, 'events' ] );
 		add_shortcode( 'gasf_upcoming_dates', [ $this, 'upcoming_dates' ] );
 		add_shortcode( 'gasf_dinner_events', [ $this, 'dinner' ] );
+		add_shortcode( 'associate_fee', [ $this, 'associate_fee' ] );
 		add_action( 'init', [ $this, 'add_query_var' ] );
 	}
 
@@ -59,6 +60,18 @@ final class Shortcodes {
 	public function dinner( $atts ): string {
 		$atts = shortcode_atts( [ 'heading' => __( 'Upcoming Dinner Nights', 'gasf-events' ), 'limit' => 6 ], $atts, 'gasf_dinner_events' );
 		return $this->upcoming_dates( [ 'contains' => 'Dinner', 'heading' => $atts['heading'], 'icon' => '🍽️', 'limit' => $atts['limit'] ] );
+	}
+
+	/**
+	 * [associate_fee] — the standard non-member day-fee note.
+	 *
+	 * Centralized so the amount/wording lives in one place and renders the same
+	 * everywhere an event description is consumed (website, Eventbrite summary,
+	 * Google Calendar / .ics, schema, feeds). Event::description() runs
+	 * do_shortcode(), so this expands even outside the_content contexts.
+	 */
+	public function associate_fee(): string {
+		return 'Note: Non-members must pay a $3 fee to become an associate member (member for the day).';
 	}
 
 	/* ---- Month grid --------------------------------------------------- */

@@ -90,7 +90,7 @@ final class Event {
 	}
 
 	public function description(): string {
-		return (string) $this->post->post_content;
+		return do_shortcode( (string) $this->post->post_content );
 	}
 
 	public function permalink(): string {
