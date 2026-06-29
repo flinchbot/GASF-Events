@@ -31,7 +31,7 @@ $weekdays = [ __( 'Sun', 'gasf-events' ), __( 'Mon', 'gasf-events' ), __( 'Tue',
 		table.p-cal td { border:1px solid #000; vertical-align:top; height:1.35in; padding:2px 3px; overflow:hidden; }
 		td .d { font-size:10pt; font-weight:bold; }
 		td.out .d { color:#aaa; }
-		td .ev { font-size:7.5pt; line-height:1.15; margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+		td .ev { font-size:7.5pt; line-height:1.1; margin-top:1px; overflow:hidden; overflow-wrap:break-word; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; line-clamp:2; }
 		td .ev b { font-weight:bold; }
 		td .more { font-size:7pt; color:#444; }
 		.cancelled { text-decoration:line-through; color:#666; }
