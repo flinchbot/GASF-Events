@@ -90,7 +90,18 @@ final class Event {
 	}
 
 	public function description(): string {
-		return do_shortcode( (string) $this->post->post_content );
+		$content = (string) $this->post->post_content;
+		// Only expand shortcodes for manually-authored events (e.g. [associate_fee]).
+		// Feed-sourced content (Facebook/ICS) is remote input: kses at ingest strips
+		// HTML but NOT [shortcode] syntax, so expanding it would let anyone who can
+		// edit a synced Facebook event or ICS feed run registered shortcodes here.
+		// strip_shortcodes() also keeps the single template's the_content pass from
+		// re-expanding them.
+		$source = (string) $this->meta( Meta::SOURCE );
+		if ( '' === $source || 'manual' === $source ) {
+			return do_shortcode( $content );
+		}
+		return strip_shortcodes( $content );
 	}
 
 	public function permalink(): string {

@@ -160,6 +160,10 @@ final class Google_Calendar {
 		$page = '';
 		do {
 			$args = [
+				// Google expects this parameter REPEATED (…&privateExtendedProperty=a&privateExtendedProperty=b).
+				// http_build_query() would emit privateExtendedProperty[0]=…, which Google
+				// silently ignores — list_managed() would then return EVERY gasf_uid event
+				// in the calendar and the delete pass would eat other feeds' events.
 				'privateExtendedProperty' => [ 'gasf_mgr=' . self::MGR, 'gasf_src=' . $feed_id ],
 				'showDeleted'             => 'false',
 				'singleEvents'            => 'false',
@@ -168,7 +172,13 @@ final class Google_Calendar {
 			if ( $page ) {
 				$args['pageToken'] = $page;
 			}
-			$url  = "/calendars/" . rawurlencode( $calendar_id ) . "/events?" . http_build_query( $args );
+			$pairs = [];
+			foreach ( $args as $k => $v ) {
+				foreach ( (array) $v as $vv ) {
+					$pairs[] = rawurlencode( $k ) . '=' . rawurlencode( (string) $vv );
+				}
+			}
+			$url  = "/calendars/" . rawurlencode( $calendar_id ) . "/events?" . implode( '&', $pairs );
 			$resp = self::api( 'GET', $url, null, $token );
 			if ( is_wp_error( $resp ) ) {
 				break;

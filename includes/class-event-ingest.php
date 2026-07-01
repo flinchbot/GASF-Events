@@ -50,7 +50,9 @@ final class Event_Ingest {
 			'post_title'   => wp_strip_all_tags( (string) $norm['title'] ),
 			// Remote (Facebook/ICS) HTML: sanitize here — cron has no user context so
 			// WP's own kses pass is unreliable; never store unfiltered remote markup.
-			'post_content' => wp_kses_post( (string) ( $norm['description'] ?? '' ) ),
+			// strip_shortcodes too: kses does NOT remove [shortcode] syntax, and remote
+			// content must never be able to execute registered shortcodes downstream.
+			'post_content' => wp_kses_post( strip_shortcodes( (string) ( $norm['description'] ?? '' ) ) ),
 		];
 		$action = 'created';
 		if ( $existing ) {
