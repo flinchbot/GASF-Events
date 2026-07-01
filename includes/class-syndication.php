@@ -125,26 +125,37 @@ final class Syndication {
 	const BATCH = 25;
 
 	public static function process_queue(): void {
-		$q = (array) get_option( self::QUEUE, [] );
-		if ( ! $q ) {
+		// Single-flight: without this, two concurrent runners (a save's shutdown
+		// hook racing the DRAIN cron) can read the same queue and both reconcile
+		// the same never-published event — creating TWO Eventbrite events. If we
+		// can't get the lock, another worker owns it and the queue persists.
+		if ( ! Meta::acquire_lock( 'pubqueue', 0 ) ) {
 			return;
 		}
-		$ids       = array_keys( $q );
-		$batch     = array_slice( $ids, 0, self::BATCH );
-		$remaining = array_slice( $ids, self::BATCH );
-		// Persist the remainder so a fatal mid-batch doesn't lose the whole queue.
-		update_option( self::QUEUE, array_fill_keys( $remaining, true ), false );
-		foreach ( $batch as $post_id ) {
-			try {
-				self::reconcile( (int) $post_id );
-			} catch ( \Throwable $e ) {
-				// Isolate one event's failure from the rest of the batch.
-				continue;
+		try {
+			$q = (array) get_option( self::QUEUE, [] );
+			if ( ! $q ) {
+				return;
 			}
-		}
-		// Schedule a follow-up tick to drain anything beyond this request's cap.
-		if ( $remaining && ! wp_next_scheduled( self::DRAIN_HOOK ) ) {
-			wp_schedule_single_event( time() + 60, self::DRAIN_HOOK );
+			$ids       = array_keys( $q );
+			$batch     = array_slice( $ids, 0, self::BATCH );
+			$remaining = array_slice( $ids, self::BATCH );
+			// Persist the remainder so a fatal mid-batch doesn't lose the whole queue.
+			update_option( self::QUEUE, array_fill_keys( $remaining, true ), false );
+			foreach ( $batch as $post_id ) {
+				try {
+					self::reconcile( (int) $post_id );
+				} catch ( \Throwable $e ) {
+					// Isolate one event's failure from the rest of the batch.
+					continue;
+				}
+			}
+			// Schedule a follow-up tick to drain anything beyond this request's cap.
+			if ( $remaining && ! wp_next_scheduled( self::DRAIN_HOOK ) ) {
+				wp_schedule_single_event( time() + 60, self::DRAIN_HOOK );
+			}
+		} finally {
+			Meta::release_lock( 'pubqueue' );
 		}
 	}
 

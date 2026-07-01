@@ -132,6 +132,24 @@ final class Meta {
 	}
 
 	/**
+	 * Best-effort cross-process mutex via a MySQL advisory lock (connection-
+	 * scoped: auto-released if the PHP worker dies mid-run). Returns true only
+	 * if THIS request now holds the lock. $timeout=0 is non-blocking — a second
+	 * concurrent caller gets false immediately rather than serialising.
+	 */
+	public static function acquire_lock( string $name, int $timeout = 0 ): bool {
+		global $wpdb;
+		$key = substr( 'gasfE:' . $name, 0, 60 );
+		return (bool) $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s, %d)', $key, max( 0, $timeout ) ) );
+	}
+
+	public static function release_lock( string $name ): void {
+		global $wpdb;
+		$key = substr( 'gasfE:' . $name, 0, 60 );
+		$wpdb->query( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $key ) );
+	}
+
+	/**
 	 * Register meta with the CPT (sanitization + single). Kept protected
 	 * (underscore-prefixed); the public REST feed is a dedicated endpoint (P7),
 	 * not raw meta exposure.

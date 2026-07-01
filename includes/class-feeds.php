@@ -83,12 +83,13 @@ final class Feeds {
 	public static function run( bool $dry = false, string $only_feed = '' ): array {
 		$stats = [ 'created' => 0, 'updated' => 0, 'drafted' => 0, 'skipped' => 0, 'google' => [ 'inserted' => 0, 'updated' => 0, 'deleted' => 0 ], 'errors' => [], 'feeds' => [], 'dry' => $dry, 'ts' => time() ];
 
-		if ( ! $dry && get_transient( self::LOCK ) ) {
+		// Atomic acquire (GET_LOCK) instead of the old check-then-set transient:
+		// an overlapping cron tick + manual "Sync now" can no longer both pass.
+		// The lock is connection-scoped, so it auto-releases at request end even
+		// if a fetch/upsert throws (the old transient stayed stuck for 30 min).
+		if ( ! $dry && ! Meta::acquire_lock( 'feeds', 0 ) ) {
 			$stats['errors'][] = 'already running';
 			return $stats;
-		}
-		if ( ! $dry ) {
-			set_transient( self::LOCK, 1, 30 * MINUTE_IN_SECONDS );
 		}
 		$gcal = self::gcal();
 
@@ -140,7 +141,7 @@ final class Feeds {
 
 		if ( ! $dry ) {
 			update_option( self::OPT_LAST_RUN, $stats, false );
-			delete_transient( self::LOCK );
+			Meta::release_lock( 'feeds' );
 			self::log( $stats );
 		}
 		return $stats;

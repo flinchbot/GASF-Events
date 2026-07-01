@@ -55,8 +55,17 @@ final class Stats {
 		}
 		set_transient( $bucket, $rate + 1, 2 * MINUTE_IN_SECONDS );
 		// Dedup on IP + event only — NOT the client-controlled UA (which could be
-		// rotated to bypass the throttle and bloat the transient table).
-		$ip          = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '';
+		// rotated to bypass the throttle and bloat the transient table). The site
+		// is Cloudflare-fronted, so REMOTE_ADDR is the edge IP (all visitors share
+		// it and collapse into a single view); prefer the real client-IP header.
+		$ip = '';
+		foreach ( [ 'HTTP_CF_CONNECTING_IP', 'HTTP_X_FORWARDED_FOR', 'REMOTE_ADDR' ] as $h ) {
+			if ( ! empty( $_SERVER[ $h ] ) ) {
+				$ip = trim( explode( ',', (string) wp_unslash( $_SERVER[ $h ] ) )[0] ); // first hop = client
+				break;
+			}
+		}
+		$ip          = sanitize_text_field( $ip );
 		$fingerprint = md5( $ip . '|' . $id );
 		$tkey        = 'gasf_v_' . $fingerprint;
 		if ( get_transient( $tkey ) ) {

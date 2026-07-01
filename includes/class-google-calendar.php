@@ -136,8 +136,12 @@ final class Google_Calendar {
 		if ( null !== $body ) {
 			$args['body'] = wp_json_encode( $body );
 		}
+		// Bounded retry: 3 attempts, backoff capped at 4s, and no sleep after the
+		// final attempt. sync_source() calls this serially per event, so an
+		// unbounded loop (was 5 attempts + 1+2+4+8+16s sleeps) could blow past
+		// max_execution_time mid-run on a flapping API.
 		$delay = 1;
-		for ( $attempt = 0; $attempt < 5; $attempt++ ) {
+		for ( $attempt = 0; $attempt < 3; $attempt++ ) {
 			$resp = wp_remote_request( self::API_BASE . $path, $args );
 			if ( is_wp_error( $resp ) ) {
 				return $resp;
@@ -149,8 +153,10 @@ final class Google_Calendar {
 			if ( ! in_array( $code, [ 403, 429, 500, 502, 503, 504 ], true ) ) {
 				return new \WP_Error( 'gcal_api', 'HTTP ' . $code );
 			}
-			usleep( (int) ( $delay * 1e6 ) );
-			$delay *= 2;
+			if ( $attempt < 2 ) {
+				usleep( (int) ( $delay * 1e6 ) );
+				$delay = min( $delay * 2, 4 );
+			}
 		}
 		return new \WP_Error( 'gcal_api', 'exhausted retries' );
 	}
@@ -203,8 +209,13 @@ final class Google_Calendar {
 			'location'    => (string) ( $ev['location'] ?? '' ),
 		];
 		if ( $all_day ) {
+			// Google's all-day end.date is EXCLUSIVE, but our stored end is the
+			// inclusive last day. Add one day, or a single-day all-day event comes
+			// out zero-length (start==end) and multi-day ones land a day short.
+			$end_day = substr( (string) ( $ev['end'] ?: $ev['start'] ), 0, 10 );
+			$end_dt  = $end_day ? date_create( $end_day ) : false;
 			$body['start'] = [ 'date' => substr( (string) $ev['start'], 0, 10 ) ];
-			$body['end']   = [ 'date' => substr( (string) ( $ev['end'] ?: $ev['start'] ), 0, 10 ) ];
+			$body['end']   = [ 'date' => $end_dt ? $end_dt->modify( '+1 day' )->format( 'Y-m-d' ) : $end_day ];
 		} else {
 			$body['start'] = [ 'dateTime' => str_replace( ' ', 'T', (string) $ev['start'] ), 'timeZone' => $tz ];
 			$body['end']   = [ 'dateTime' => str_replace( ' ', 'T', (string) ( $ev['end'] ?: $ev['start'] ) ), 'timeZone' => $tz ];
