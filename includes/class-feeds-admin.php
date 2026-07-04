@@ -18,6 +18,7 @@ final class Feeds_Admin {
 		add_action( 'admin_menu', [ $this, 'menu' ] );
 		add_action( 'admin_post_gasf_feeds_gate', [ $this, 'save_gate' ] );
 		add_action( 'admin_post_gasf_feeds_add', [ $this, 'add_feed' ] );
+		add_action( 'admin_post_gasf_feeds_update', [ $this, 'update_feed' ] );
 		add_action( 'admin_post_gasf_feeds_del', [ $this, 'del_feed' ] );
 		add_action( 'admin_post_gasf_feeds_toggle', [ $this, 'toggle_feed' ] );
 		add_action( 'admin_post_gasf_feeds_import_mec', [ $this, 'import_mec' ] );
@@ -99,6 +100,50 @@ final class Feeds_Admin {
 		$this->back();
 	}
 
+	/**
+	 * Update an existing feed in place. id + type are immutable; every other
+	 * field is re-read from the form. A Facebook token/expiry left blank keeps
+	 * the stored value, so you can edit the filter without re-entering the token.
+	 */
+	public function update_feed(): void {
+		$this->guard( 'gasf_feeds_edit' );
+		$id    = sanitize_text_field( wp_unslash( $_POST['id'] ?? '' ) );
+		$feeds = Feeds::feeds();
+		$hit   = false;
+		foreach ( $feeds as &$f ) {
+			if ( ( $f['id'] ?? '' ) !== $id ) {
+				continue;
+			}
+			$hit = true;
+			$f['label']       = sanitize_text_field( wp_unslash( $_POST['label'] ?? '' ) );
+			$f['enabled']     = ! empty( $_POST['enabled'] );
+			$f['dest_gasf']   = ! empty( $_POST['dest_gasf'] );
+			$f['dest_google'] = ! empty( $_POST['dest_google'] );
+			$f['filter']      = sanitize_text_field( wp_unslash( $_POST['filter'] ?? '' ) );
+			$f['prefix']      = sanitize_text_field( wp_unslash( $_POST['prefix'] ?? '' ) );
+			$f['gcal_id']     = sanitize_text_field( wp_unslash( $_POST['gcal_id'] ?? '' ) );
+			$f['gcal_color']  = ( '' !== (string) ( $_POST['gcal_color'] ?? '' ) && (int) $_POST['gcal_color'] >= 1 && (int) $_POST['gcal_color'] <= 11 ) ? (string) (int) $_POST['gcal_color'] : '';
+			if ( 'ics' === ( $f['type'] ?? '' ) ) {
+				$f['url'] = esc_url_raw( wp_unslash( $_POST['url'] ?? '' ) );
+			} else {
+				$f['page_id'] = sanitize_text_field( wp_unslash( $_POST['page_id'] ?? '' ) );
+				$tok          = trim( (string) wp_unslash( $_POST['access_token'] ?? '' ) );
+				if ( '' !== $tok ) { // blank = keep the stored token
+					$f['access_token'] = $tok;
+				}
+				if ( ! empty( $_POST['expire_at'] ) ) {
+					$f['expire_at'] = (int) strtotime( sanitize_text_field( wp_unslash( $_POST['expire_at'] ) ) );
+				}
+			}
+			break;
+		}
+		unset( $f );
+		if ( $hit ) {
+			Feeds::save_feeds( $feeds );
+		}
+		$this->back();
+	}
+
 	public function del_feed(): void {
 		$this->guard( 'gasf_feeds_edit' );
 		$id = sanitize_text_field( wp_unslash( $_POST['id'] ?? '' ) );
@@ -174,6 +219,18 @@ final class Feeds_Admin {
 		$result  = get_transient( 'gasf_feeds_result_' . get_current_user_id() );
 		delete_transient( 'gasf_feeds_result_' . get_current_user_id() );
 		$u = esc_url( admin_url( 'admin-post.php' ) );
+
+		// Edit mode: ?edit=<feed id> pre-fills an inline editor for that feed.
+		$editing = null;
+		if ( ! empty( $_GET['edit'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			$eid = sanitize_text_field( wp_unslash( $_GET['edit'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			foreach ( $feeds as $ef ) {
+				if ( ( $ef['id'] ?? '' ) === $eid ) {
+					$editing = $ef;
+					break;
+				}
+			}
+		}
 		?>
 		<div class="wrap">
 			<h1><?php esc_html_e( 'Event Feeds', 'gasf-events' ); ?></h1>
@@ -219,8 +276,9 @@ final class Feeds_Admin {
 					<?php foreach ( $feeds as $f ) :
 						$dests = array_filter( [ ! empty( $f['dest_gasf'] ) ? 'GASF' : '', ! empty( $f['dest_google'] ) ? 'Google' : '' ] );
 						$src   = 'ics' === ( $f['type'] ?? '' ) ? ( $f['url'] ?? '' ) : ( $f['page_id'] ?? '' );
+						$is_editing = $editing && ( $editing['id'] ?? '' ) === ( $f['id'] ?? '' );
 						?>
-						<tr>
+						<tr<?php echo $is_editing ? ' style="background:#fcf9e8;"' : ''; ?>>
 							<td><?php echo esc_html( $f['label'] ?? '' ); ?><?php
 								$mods = array_filter( [
 									! empty( $f['filter'] ) ? sprintf( /* translators: %s filter text */ __( 'filter: “%s”', 'gasf-events' ), $f['filter'] ) : '',
@@ -232,6 +290,7 @@ final class Feeds_Admin {
 							<td><?php echo esc_html( $dests ? implode( ' + ', $dests ) : '—' ); ?><?php if ( ! empty( $f['dest_google'] ) && ! empty( $f['gcal_id'] ) ) : ?><br><small style="color:#646970;"><?php echo esc_html( mb_strimwidth( (string) $f['gcal_id'], 0, 28, '…' ) ); ?></small><?php endif; ?></td>
 							<td><?php echo ! empty( $f['enabled'] ) ? '✓' : '—'; ?></td>
 							<td>
+								<a href="<?php echo esc_url( add_query_arg( 'edit', $f['id'], $this->url() ) ); ?>"><?php esc_html_e( 'Edit', 'gasf-events' ); ?></a> |
 								<form method="post" action="<?php echo $u; ?>" style="display:inline;"><?php wp_nonce_field( 'gasf_feeds_edit' ); ?><input type="hidden" name="action" value="gasf_feeds_toggle"><input type="hidden" name="id" value="<?php echo esc_attr( $f['id'] ); ?>"><button class="button-link"><?php echo ! empty( $f['enabled'] ) ? esc_html__( 'Disable', 'gasf-events' ) : esc_html__( 'Enable', 'gasf-events' ); ?></button></form> |
 								<form method="post" action="<?php echo $u; ?>" style="display:inline;"><?php wp_nonce_field( 'gasf_feeds_run' ); ?><input type="hidden" name="action" value="gasf_feeds_run"><input type="hidden" name="dry" value="1"><input type="hidden" name="only" value="<?php echo esc_attr( $f['id'] ); ?>"><button class="button-link"><?php esc_html_e( 'Test', 'gasf-events' ); ?></button></form> |
 								<form method="post" action="<?php echo $u; ?>" style="display:inline;" onsubmit="return confirm('<?php echo esc_js( __( 'Remove feed?', 'gasf-events' ) ); ?>');"><?php wp_nonce_field( 'gasf_feeds_edit' ); ?><input type="hidden" name="action" value="gasf_feeds_del"><input type="hidden" name="id" value="<?php echo esc_attr( $f['id'] ); ?>"><button class="button-link delete"><?php esc_html_e( 'Remove', 'gasf-events' ); ?></button></form>
@@ -240,6 +299,50 @@ final class Feeds_Admin {
 					<?php endforeach; ?>
 				</tbody>
 			</table>
+
+			<?php if ( $editing ) :
+				$is_ics = 'ics' === ( $editing['type'] ?? '' ); ?>
+			<div style="border:1px solid #2271b1;background:#f0f6fc;border-radius:3px;padding:12px 16px;margin:14px 0;max-width:900px;">
+				<h3 style="margin-top:0;"><?php echo esc_html( sprintf( /* translators: %s feed label */ __( 'Edit feed: %s', 'gasf-events' ), $editing['label'] ?? '' ) ); ?> <span style="font-weight:400;color:#646970;">(<?php echo esc_html( strtoupper( (string) ( $editing['type'] ?? '' ) ) ); ?>)</span></h3>
+				<form method="post" action="<?php echo $u; ?>">
+					<?php wp_nonce_field( 'gasf_feeds_edit' ); ?>
+					<input type="hidden" name="action" value="gasf_feeds_update">
+					<input type="hidden" name="id" value="<?php echo esc_attr( $editing['id'] ); ?>">
+					<p><label><?php esc_html_e( 'Label', 'gasf-events' ); ?><br>
+						<input type="text" name="label" value="<?php echo esc_attr( $editing['label'] ?? '' ); ?>" size="34" required></label></p>
+					<?php if ( $is_ics ) : ?>
+						<p><label><?php esc_html_e( 'iCal (.ics) URL', 'gasf-events' ); ?><br>
+							<input type="url" name="url" value="<?php echo esc_attr( $editing['url'] ?? '' ); ?>" size="60" required></label></p>
+					<?php else : ?>
+						<p><label><?php esc_html_e( 'Page id / username', 'gasf-events' ); ?><br>
+							<input type="text" name="page_id" value="<?php echo esc_attr( $editing['page_id'] ?? '' ); ?>" size="34" required></label></p>
+						<p><label><?php esc_html_e( 'Access token', 'gasf-events' ); ?><br>
+							<input type="text" name="access_token" value="" size="44" placeholder="<?php esc_attr_e( 'leave blank to keep the saved token', 'gasf-events' ); ?>"></label></p>
+						<p><label><?php esc_html_e( 'Token expiry', 'gasf-events' ); ?>
+							<input type="date" name="expire_at" value="<?php echo esc_attr( ! empty( $editing['expire_at'] ) ? wp_date( 'Y-m-d', (int) $editing['expire_at'] ) : '' ); ?>"></label></p>
+					<?php endif; ?>
+					<p>
+						<label><?php esc_html_e( 'Filter — only titles containing', 'gasf-events' ); ?>
+							<input type="text" name="filter" value="<?php echo esc_attr( $editing['filter'] ?? '' ); ?>" size="24"></label>
+						<label style="margin-left:14px;"><?php esc_html_e( 'Title prefix', 'gasf-events' ); ?>
+							<input type="text" name="prefix" value="<?php echo esc_attr( $editing['prefix'] ?? '' ); ?>" size="16" placeholder="<?php esc_attr_e( '[TAG]; - = none', 'gasf-events' ); ?>"></label>
+					</p>
+					<p>
+						<label><?php esc_html_e( 'Google Cal ID override', 'gasf-events' ); ?>
+							<input type="text" name="gcal_id" value="<?php echo esc_attr( $editing['gcal_id'] ?? '' ); ?>" size="28"></label>
+						<label style="margin-left:14px;"><?php esc_html_e( 'Color 1–11', 'gasf-events' ); ?>
+							<input type="number" name="gcal_color" min="1" max="11" value="<?php echo esc_attr( $editing['gcal_color'] ?? '' ); ?>" style="width:74px"></label>
+					</p>
+					<p>
+						<label><input type="checkbox" name="dest_gasf" value="1" <?php checked( ! empty( $editing['dest_gasf'] ) ); ?>> <?php esc_html_e( 'GASF calendar', 'gasf-events' ); ?></label>
+						<label style="margin-left:14px;"><input type="checkbox" name="dest_google" value="1" <?php checked( ! empty( $editing['dest_google'] ) ); ?>> <?php esc_html_e( 'Google Calendar', 'gasf-events' ); ?></label>
+						<label style="margin-left:14px;"><input type="checkbox" name="enabled" value="1" <?php checked( ! empty( $editing['enabled'] ) ); ?>> <?php esc_html_e( 'Enabled', 'gasf-events' ); ?></label>
+					</p>
+					<?php submit_button( __( 'Save changes', 'gasf-events' ), 'primary', '', false ); ?>
+					<a href="<?php echo esc_url( $this->url() ); ?>" class="button" style="margin-left:6px;"><?php esc_html_e( 'Cancel', 'gasf-events' ); ?></a>
+				</form>
+			</div>
+			<?php endif; ?>
 
 			<h3><?php esc_html_e( 'Add a Facebook page', 'gasf-events' ); ?></h3>
 			<form method="post" action="<?php echo $u; ?>">
