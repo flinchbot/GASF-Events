@@ -44,7 +44,7 @@ final class Assets {
 		}
 		$post = get_post();
 		if ( $post && is_singular() ) {
-			foreach ( [ 'gasf_events', 'gasf_upcoming_dates', 'gasf_dinner_events' ] as $sc ) {
+			foreach ( [ 'gasf_events', 'gasf_upcoming_dates', 'gasf_dinner_events', 'gasf_bayern_events' ] as $sc ) {
 				if ( has_shortcode( (string) $post->post_content, $sc ) ) {
 					return true;
 				}

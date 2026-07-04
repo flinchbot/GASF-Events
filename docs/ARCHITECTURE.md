@@ -237,7 +237,9 @@ Port Module G (`single-mec-events.php`) to a plugin-owned `template_include` (pr
 
 ### 5.3 Custom shortcodes — full rename + aliases ("all in")
 Rename to the `gasf_*` namespace with internals reading `gasf_event`/`_gasf_*`:
-`[mec_upcoming_dates]→[gasf_upcoming_dates]`, `[german_dinner_events]→[gasf_dinner_events]`, `[bayern_match_events]→[gasf_bayern_events]`, `[world_cup_schedule]→[gasf_world_cup_schedule]`. **Old tags are registered as back-compat aliases** so existing page content keeps working; page content is migrated to the new tags and aliases retired after a grace period. No `mec_*` names survive in new code.
+`[mec_upcoming_dates]→[gasf_upcoming_dates]`, `[german_dinner_events]→[gasf_dinner_events]`, `[bayern_match_events]→[gasf_bayern_events]`, `[world_cup_schedule]→[gasf_world_cup_schedule]`. No `mec_*` names survive in new code.
+
+**Status (2026-07-04):** `gasf_upcoming_dates`, `gasf_dinner_events` and `gasf_bayern_events` are implemented (the latter two as thin presets over the generic filter). Rather than registering back-compat aliases, the old tags' page content was migrated directly and the old GASF-Utilities modules deleted (Utilities v1.5/v1.6). `[world_cup_schedule]` stays in GASF-Utilities — it already queries `gasf_event` natively.
 
 ### 5.4 Theming
 Plugin CSS uses CSS custom properties (`--gas-color-*`, `--gas-font-*`, etc.) so colors/fonts inherit the site theme and the kiosk theme tokens. Admins restyle via variables; no rebuild.

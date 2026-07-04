@@ -17,6 +17,7 @@ final class Shortcodes {
 		add_shortcode( 'gasf_events', [ $this, 'events' ] );
 		add_shortcode( 'gasf_upcoming_dates', [ $this, 'upcoming_dates' ] );
 		add_shortcode( 'gasf_dinner_events', [ $this, 'dinner' ] );
+		add_shortcode( 'gasf_bayern_events', [ $this, 'bayern' ] );
 		add_shortcode( 'associate_fee', [ $this, 'associate_fee' ] );
 		add_action( 'init', [ $this, 'add_query_var' ] );
 	}
@@ -60,6 +61,17 @@ final class Shortcodes {
 	public function dinner( $atts ): string {
 		$atts = shortcode_atts( [ 'heading' => __( 'Upcoming Dinner Nights', 'gasf-events' ), 'limit' => 6 ], $atts, 'gasf_dinner_events' );
 		return $this->upcoming_dates( [ 'contains' => 'Dinner', 'heading' => $atts['heading'], 'icon' => '🍽️', 'limit' => $atts['limit'] ] );
+	}
+
+	/**
+	 * [gasf_bayern_events] — thin preset over the generic filter (replaces the
+	 * GASF-Utilities [bayern_match_events] module). "FC Bayern v" CONTAINS
+	 * matching catches "FC Bayern v X", "FC Bayern vs X" and cup naming like
+	 * "DFB Pokalfinale FC Bayern v Stuttgart".
+	 */
+	public function bayern( $atts ): string {
+		$atts = shortcode_atts( [ 'heading' => __( 'Upcoming FC Bayern Matches', 'gasf-events' ), 'limit' => 5 ], $atts, 'gasf_bayern_events' );
+		return $this->upcoming_dates( [ 'contains' => 'FC Bayern v', 'heading' => $atts['heading'], 'icon' => '⚽', 'limit' => $atts['limit'] ] );
 	}
 
 	/**
