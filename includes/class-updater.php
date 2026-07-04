@@ -69,19 +69,46 @@ final class Updater {
 		return $ver;
 	}
 
-	/** GitHub zipballs extract as GASF-Events-main/ — rename to the installed folder. */
+	/**
+	 * GitHub zipballs extract as GASF-Events-main/ — rename to the installed
+	 * folder (GASF-Events/) so WordPress installs over the right plugin.
+	 *
+	 * Hardened to fail CLOSED: if it can't produce a correctly-named folder that
+	 * actually contains the main plugin file, it returns a WP_Error. That aborts
+	 * the upgrade in install_package() *before* WordPress deletes the currently
+	 * installed version — so a flaky rename can never leave an empty, still-
+	 * active plugin folder (the intermittent outage we kept hitting on Krampus).
+	 */
 	public function fix_folder( $source, $remote_source, $upgrader, $hook_extra ) {
 		if ( is_wp_error( $source ) || empty( $hook_extra['plugin'] ) || plugin_basename( $this->file ) !== $hook_extra['plugin'] ) {
 			return $source;
 		}
 		global $wp_filesystem;
-		$want = trailingslashit( $remote_source ) . dirname( plugin_basename( $this->file ) ) . '/';
-		if ( untrailingslashit( $source ) === untrailingslashit( $want ) ) {
-			return $source;
+		if ( ! $wp_filesystem ) {
+			return $source; // no filesystem to act on — leave WP's default behavior
 		}
-		if ( $wp_filesystem && $wp_filesystem->move( $source, $want ) ) {
+		$main = basename( plugin_basename( $this->file ) );                                    // gasf-events.php
+		$want = trailingslashit( $remote_source ) . dirname( plugin_basename( $this->file ) ) . '/'; // …/GASF-Events/
+
+		// Already correctly named: only accept it if it's a real package.
+		if ( untrailingslashit( $source ) === untrailingslashit( $want ) ) {
+			return $wp_filesystem->exists( $want . $main )
+				? $source
+				: new \WP_Error( 'gasf_pkg_incomplete', sprintf( 'Update package is missing %s; keeping the installed version.', $main ) );
+		}
+
+		// Clear any stale target from a prior failed run, then overwrite-move so
+		// move() can't early-return false on an existing destination.
+		if ( $wp_filesystem->exists( $want ) ) {
+			$wp_filesystem->delete( $want, true );
+		}
+		$moved = $wp_filesystem->move( $source, $want, true );
+
+		// Verify before handing it back — never return a source that would copy
+		// nothing into the plugin folder.
+		if ( $moved && $wp_filesystem->exists( $want . $main ) ) {
 			return $want;
 		}
-		return $source;
+		return new \WP_Error( 'gasf_pkg_move', 'Could not prepare the update package (folder rename failed); keeping the installed version.' );
 	}
 }
