@@ -69,8 +69,15 @@ final class Settings {
 			'gasf-events-settings',
 			[ $this, 'render_settings_page' ]
 		);
-		// Media picker for the default image, only on this page.
-		add_action( 'admin_print_scripts-' . $hook, 'wp_enqueue_media' );
+		// Media picker for the default image, only on this page. admin_enqueue_scripts
+		// is the canonical hook — it fires early enough that wp.media loads reliably
+		// (the old admin_print_scripts-{hook} could land media in the footer, after
+		// the settings view's inline script had already run).
+		add_action( 'admin_enqueue_scripts', static function ( $screen ) use ( $hook ) {
+			if ( $screen === $hook ) {
+				wp_enqueue_media();
+			}
+		} );
 	}
 
 	public function register_settings(): void {

@@ -62,22 +62,38 @@ defined( 'ABSPATH' ) || exit;
 </div>
 <script>
 ( function () {
-	var pick = document.getElementById( 'gasf_default_img_pick' );
-	if ( ! pick || ! window.wp || ! wp.media ) { return; }
-	var frame;
-	pick.addEventListener( 'click', function () {
-		frame = frame || wp.media( { title: 'Select default image', multiple: false } );
-		frame.off( 'select' ).on( 'select', function () {
-			var a = frame.state().get( 'selection' ).first().toJSON();
-			document.getElementById( 'gasf_default_img' ).value = a.id;
-			document.getElementById( 'gasf_default_img_preview' ).innerHTML =
-				'<img src="' + ( a.sizes && a.sizes.medium ? a.sizes.medium.url : a.url ) + '" style="max-width:240px;height:auto;border:1px solid #ccd0d4;">';
+	// Attach on DOMContentLoaded and test wp.media at CLICK time — not now.
+	// The media library scripts are enqueued for this screen but may load in the
+	// footer (after this inline block parses); checking wp.media up front would
+	// wrongly bail and leave the button with no handler ("nothing happens").
+	function boot() {
+		var pick  = document.getElementById( 'gasf_default_img_pick' );
+		var clear = document.getElementById( 'gasf_default_img_clear' );
+		if ( ! pick ) { return; }
+		var frame;
+		pick.addEventListener( 'click', function ( e ) {
+			e.preventDefault();
+			if ( ! window.wp || ! wp.media ) {
+				window.alert( 'The WordPress media library did not load — please reload the page and try again.' );
+				return;
+			}
+			frame = frame || wp.media( { title: 'Select default image', button: { text: 'Use this image' }, multiple: false } );
+			frame.off( 'select' ).on( 'select', function () {
+				var a = frame.state().get( 'selection' ).first().toJSON();
+				document.getElementById( 'gasf_default_img' ).value = a.id;
+				document.getElementById( 'gasf_default_img_preview' ).innerHTML =
+					'<img src="' + ( a.sizes && a.sizes.medium ? a.sizes.medium.url : a.url ) + '" style="max-width:240px;height:auto;border:1px solid #ccd0d4;">';
+			} );
+			frame.open();
 		} );
-		frame.open();
-	} );
-	document.getElementById( 'gasf_default_img_clear' ).addEventListener( 'click', function () {
-		document.getElementById( 'gasf_default_img' ).value = '';
-		document.getElementById( 'gasf_default_img_preview' ).innerHTML = '';
-	} );
+		if ( clear ) {
+			clear.addEventListener( 'click', function () {
+				document.getElementById( 'gasf_default_img' ).value = '';
+				document.getElementById( 'gasf_default_img_preview' ).innerHTML = '';
+			} );
+		}
+	}
+	if ( document.readyState !== 'loading' ) { boot(); }
+	else { document.addEventListener( 'DOMContentLoaded', boot ); }
 } )();
 </script>
