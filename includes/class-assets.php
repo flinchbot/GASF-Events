@@ -1,9 +1,9 @@
 <?php
 /**
- * Front-end asset loading: our CSS, our JS (Alpine components + helpers),
- * vendored Alpine.js, and the QR generator. Loaded only on pages that need
- * them. Execution order is enforced via dependencies so our `alpine:init`
- * listener is registered before Alpine boots.
+ * Front-end asset loading: our CSS, our JS (Alpine components + helpers), and
+ * vendored Alpine.js. Loaded only on pages that need them. Execution order is
+ * enforced via dependencies so our `alpine:init` listener is registered
+ * before Alpine boots.
  *
  * @package GASF_Events
  */
@@ -25,8 +25,7 @@ final class Assets {
 	public function register(): void {
 		$v = GASF_EVENTS_VERSION;
 		wp_register_style( 'gasf-events', GASF_EVENTS_URL . 'assets/css/gasf-events.css', [], $v );
-		wp_register_script( 'gasf-events-qr', GASF_EVENTS_URL . 'assets/js/vendor/qrcode.min.js', [], '1.4.4', true );
-		wp_register_script( 'gasf-events', GASF_EVENTS_URL . 'assets/js/gasf-events.js', [ 'gasf-events-qr' ], $v, true );
+		wp_register_script( 'gasf-events', GASF_EVENTS_URL . 'assets/js/gasf-events.js', [], $v, true );
 		// Alpine depends on our script so our alpine:init listener is registered first.
 		wp_register_script( 'gasf-events-alpine', GASF_EVENTS_URL . 'assets/js/vendor/alpine.min.js', [ 'gasf-events' ], '3.14.8', true );
 	}
@@ -60,14 +59,13 @@ final class Assets {
 		}
 		self::$needed = true;
 		wp_enqueue_style( 'gasf-events' );
-		wp_enqueue_script( 'gasf-events-qr' );
 		wp_enqueue_script( 'gasf-events' );
 		wp_enqueue_script( 'gasf-events-alpine' );
 	}
 
 	/** Add defer to our scripts (keeps document parse non-blocking). */
 	public function defer( string $tag, string $handle ): string {
-		if ( in_array( $handle, [ 'gasf-events-qr', 'gasf-events', 'gasf-events-alpine' ], true ) && false === strpos( $tag, ' defer' ) ) {
+		if ( in_array( $handle, [ 'gasf-events', 'gasf-events-alpine' ], true ) && false === strpos( $tag, ' defer' ) ) {
 			$tag = str_replace( ' src=', ' defer src=', $tag );
 		}
 		return $tag;

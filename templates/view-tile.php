@@ -1,8 +1,8 @@
 <?php
 /**
  * Signage / tile view — full-bleed auto-advancing carousel for the hallway
- * display. No interaction required; each slide shows the cover, title, date,
- * and a "scan to view" QR. Alpine drives the timer + crossfade.
+ * display. No interaction required; each slide shows the cover, title, and
+ * date. Alpine drives the timer + crossfade.
  *
  * @package GASF_Events
  * @var Event[] $events
@@ -29,7 +29,6 @@ if ( ! $events ) {
 				<h2 class="gasf-tile__title"><?php echo esc_html( $e->title() ); ?></h2>
 				<p class="gasf-tile__date"><?php echo esc_html( $datefmt ); ?></p>
 			</div>
-			<div class="gasf-tile__qr" data-gasf-qr="<?php echo esc_url( $e->permalink() ); ?>" title="<?php esc_attr_e( 'Scan for details', 'gasf-events' ); ?>"></div>
 		</div>
 	<?php endforeach; ?>
 	<div class="gasf-tiles__dots">

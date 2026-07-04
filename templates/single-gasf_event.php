@@ -107,7 +107,6 @@ $more_is_fb = (bool) preg_match( '~(?:^|\.)(?:facebook\.com|fb\.(?:com|me|watch)
 								<li><a href="<?php echo esc_url( $link['url'] ); ?>"<?php echo 'apple' === $link['key'] ? '' : ' target="_blank" rel="noopener"'; ?>><?php echo esc_html( $link['label'] ); ?></a></li>
 							<?php endforeach; ?>
 						</ul>
-						<div class="gasf-atc__qr" data-gasf-qr="<?php echo esc_url( Add_To_Calendar::ics_url( $event ) ); ?>" title="<?php esc_attr_e( 'Scan to add to your phone', 'gasf-events' ); ?>"></div>
 					</div>
 				<?php endif; ?>
 

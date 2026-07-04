@@ -1,8 +1,8 @@
 /**
  * GASF Events — progressive enhancement.
- * Registers Alpine components (signage carousel), renders QR codes, and turns
- * the month grid's prev/next links into fetch-swapped, animated navigation.
- * Everything degrades to working server HTML if JS is off.
+ * Registers Alpine components (signage carousel) and turns the month grid's
+ * prev/next links into fetch-swapped, animated navigation. Everything
+ * degrades to working server HTML if JS is off.
  */
 ( function () {
 	'use strict';
@@ -51,20 +51,6 @@
 		} );
 	} );
 
-	/* ---- QR codes (data-gasf-qr="<url>") ---- */
-	function renderQR( root ) {
-		if ( typeof window.qrcode !== 'function' ) { return; }
-		( root || document ).querySelectorAll( '[data-gasf-qr]:not([data-gasf-qr-done])' ).forEach( function ( el ) {
-			try {
-				var qr = window.qrcode( 0, 'M' );
-				qr.addData( el.getAttribute( 'data-gasf-qr' ) );
-				qr.make();
-				el.innerHTML = qr.createSvgTag( { cellSize: 3, margin: 1, scalable: true } );
-				el.setAttribute( 'data-gasf-qr-done', '1' );
-			} catch ( e ) { /* ignore */ }
-		} );
-	}
-
 	/* ---- Month grid: fetch-swapped prev/next ---- */
 	function swapCalendar( url ) {
 		fetch( url, { credentials: 'same-origin' } )
@@ -77,9 +63,8 @@
 				var apply = function () {
 					cur.replaceWith( next );
 					// Initialize Alpine on the freshly inserted (foreign-document) subtree
-					// so the "+N more" toggles work after navigation; then render QRs.
+					// so the "+N more" toggles work after navigation.
 					if ( window.Alpine && window.Alpine.initTree ) { window.Alpine.initTree( next ); }
-					renderQR( document );
 					window.history.pushState( {}, '', url );
 				};
 				if ( document.startViewTransition ) {
@@ -101,12 +86,6 @@
 	window.addEventListener( 'popstate', function () {
 		if ( document.querySelector( '[data-gasf-cal]' ) ) { swapCalendar( window.location.href ); }
 	} );
-
-	if ( document.readyState !== 'loading' ) {
-		renderQR( document );
-	} else {
-		document.addEventListener( 'DOMContentLoaded', function () { renderQR( document ); } );
-	}
 
 	/* ---- View-count beacon (single event pages) ---- */
 	if ( window.GASF_VIEW && window.GASF_VIEW.id && navigator.sendBeacon ) {
