@@ -182,7 +182,11 @@
 .gasf-single__statusbanner { display:inline-block; background:var(--gasf-cancelled); color:#fff; padding:3px 12px; border-radius:12px; font-weight:600; }
 .gasf-single__grid { display:grid; grid-template-columns:1fr 320px; gap:32px; margin-top:24px; }
 .gasf-single__content { min-width:0; }
-.gasf-single__aside { border-left:1px solid var(--gasf-border); padding-left:24px; }
+/* width:100%+box-sizing: some themes style the bare <aside> tag (their own
+   sidebar widget area) with e.g. "aside{width:20%}" — a tag selector that
+   collides with our semantic <aside> here. Our class selector already wins
+   on specificity, but only if we actually declare a width to override theirs. */
+.gasf-single__aside { border-left:1px solid var(--gasf-border); padding-left:24px; width:100%; box-sizing:border-box; }
 @media (max-width:820px){ .gasf-single__grid{ grid-template-columns:1fr; } .gasf-single__aside{ border-left:0; padding-left:0; } }
 .gasf-btn { display:inline-block; padding:9px 16px; border:1px solid var(--gasf-border); border-radius:var(--gasf-radius); text-decoration:none; color:var(--gasf-text); background:var(--gasf-surface); cursor:pointer; }
 .gasf-btn--primary { background:var(--gasf-accent); color:#fff; border-color:var(--gasf-accent); }
