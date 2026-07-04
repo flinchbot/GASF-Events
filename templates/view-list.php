@@ -4,18 +4,22 @@
  *
  * @package GASF_Events
  * @var Event[] $events
+ * @var bool    $show_filter  Whether to show the live search box (default true).
  */
 
 namespace GASF_Events;
 
 defined( 'ABSPATH' ) || exit;
 
-$groups = Calendar::group_by_day( $events );
+$groups      = Calendar::group_by_day( $events );
+$show_filter = isset( $show_filter ) ? (bool) $show_filter : true;
 ?>
 <div class="gasf-list" x-data="{ q: '' }">
+	<?php if ( $show_filter ) : ?>
 	<div class="gasf-list__tools">
 		<input type="search" class="gasf-list__search" x-model="q" placeholder="<?php esc_attr_e( 'Filter events…', 'gasf-events' ); ?>" aria-label="<?php esc_attr_e( 'Filter events', 'gasf-events' ); ?>">
 	</div>
+	<?php endif; ?>
 
 	<?php if ( ! $events ) : ?>
 		<p class="gasf-empty"><?php esc_html_e( 'No upcoming events.', 'gasf-events' ); ?></p>

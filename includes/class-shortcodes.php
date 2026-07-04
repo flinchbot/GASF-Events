@@ -26,12 +26,16 @@ final class Shortcodes {
 		add_rewrite_tag( '%gasf_m%', '([0-9]{4}-[0-9]{2})' );
 	}
 
-	/** [gasf_events view="month|list|tile" limit="" month="YYYY-MM"] */
+	/** [gasf_events view="month|list|tile" limit="" month="YYYY-MM" filter="1"] */
 	public function events( $atts ): string {
-		$atts = shortcode_atts( [ 'view' => 'month', 'limit' => 0, 'month' => '' ], $atts, 'gasf_events' );
+		$atts = shortcode_atts( [ 'view' => 'month', 'limit' => 0, 'month' => '', 'filter' => '1' ], $atts, 'gasf_events' );
 		switch ( $atts['view'] ) {
 			case 'list':
-				return $this->render( 'view-list', [ 'events' => Calendar::upcoming( (int) ( $atts['limit'] ?: 30 ) ) ] );
+				return $this->render( 'view-list', [
+					'events'      => Calendar::upcoming( (int) ( $atts['limit'] ?: 30 ) ),
+					// filter="0"/"off"/"no" hides the live search box (e.g. small calendars).
+					'show_filter' => ! in_array( strtolower( (string) $atts['filter'] ), [ '0', 'off', 'no', 'false' ], true ),
+				] );
 			case 'tile':
 				return $this->render( 'view-tile', [ 'events' => Calendar::upcoming( (int) ( $atts['limit'] ?: 20 ) ) ] );
 			case 'home': // compact upcoming agenda for the front page (matches old MEC 12976).
