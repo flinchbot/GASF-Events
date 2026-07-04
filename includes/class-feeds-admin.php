@@ -85,6 +85,7 @@ final class Feeds_Admin {
 			'filter'      => sanitize_text_field( wp_unslash( $_POST['filter'] ?? '' ) ),
 			'prefix'      => sanitize_text_field( wp_unslash( $_POST['prefix'] ?? '' ) ),
 			'gcal_id'     => sanitize_text_field( wp_unslash( $_POST['gcal_id'] ?? '' ) ),
+			'gcal_color'  => ( '' !== (string) ( $_POST['gcal_color'] ?? '' ) && (int) $_POST['gcal_color'] >= 1 && (int) $_POST['gcal_color'] <= 11 ) ? (string) (int) $_POST['gcal_color'] : '',
 		];
 		if ( 'ics' === $type ) {
 			$feed['url'] = esc_url_raw( wp_unslash( $_POST['url'] ?? '' ) );
@@ -251,6 +252,7 @@ final class Feeds_Admin {
 				<input type="text" name="filter" placeholder="<?php esc_attr_e( 'Only titles containing… (optional)', 'gasf-events' ); ?>" size="24">
 				<input type="text" name="prefix" placeholder="<?php esc_attr_e( 'Title prefix, e.g. [GTB] (optional; - = none)', 'gasf-events' ); ?>" size="20">
 				<input type="text" name="gcal_id" placeholder="<?php esc_attr_e( 'Google Cal ID override (optional)', 'gasf-events' ); ?>" size="24">
+				<input type="number" name="gcal_color" min="1" max="11" placeholder="<?php esc_attr_e( 'Color 1–11', 'gasf-events' ); ?>" style="width:80px" title="<?php esc_attr_e( 'Google event colorId (optional)', 'gasf-events' ); ?>">
 				<label><input type="checkbox" name="dest_gasf" value="1" checked> <?php esc_html_e( 'GASF', 'gasf-events' ); ?></label>
 				<label><input type="checkbox" name="dest_google" value="1"> <?php esc_html_e( 'Google', 'gasf-events' ); ?></label>
 				<?php submit_button( __( 'Add', 'gasf-events' ), 'secondary', '', false ); ?>
@@ -265,6 +267,7 @@ final class Feeds_Admin {
 				<input type="text" name="filter" placeholder="<?php esc_attr_e( 'Only titles containing… (optional)', 'gasf-events' ); ?>" size="24">
 				<input type="text" name="prefix" placeholder="<?php esc_attr_e( 'Title prefix, e.g. [GTB] (optional; - = none)', 'gasf-events' ); ?>" size="20">
 				<input type="text" name="gcal_id" placeholder="<?php esc_attr_e( 'Google Cal ID override (optional)', 'gasf-events' ); ?>" size="24">
+				<input type="number" name="gcal_color" min="1" max="11" placeholder="<?php esc_attr_e( 'Color 1–11', 'gasf-events' ); ?>" style="width:80px" title="<?php esc_attr_e( 'Google event colorId (optional)', 'gasf-events' ); ?>">
 				<label><input type="checkbox" name="dest_gasf" value="1" checked> <?php esc_html_e( 'GASF', 'gasf-events' ); ?></label>
 				<label><input type="checkbox" name="dest_google" value="1"> <?php esc_html_e( 'Google', 'gasf-events' ); ?></label>
 				<?php submit_button( __( 'Add', 'gasf-events' ), 'secondary', '', false ); ?>

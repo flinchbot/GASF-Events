@@ -152,7 +152,7 @@ final class Feeds {
 			// A feed may target its own calendar via 'gcal_id'; global is the default.
 			$cal_id = trim( (string) ( $feed['gcal_id'] ?? '' ) ) ?: (string) $gcal['calendar_id'];
 			if ( ! empty( $feed['dest_google'] ) && $cal_id && Google_Calendar::available() ) {
-				$g = Google_Calendar::sync_source( (string) $feed['id'], (string) ( $feed['label'] ?? $feed['id'] ), $cal_id, $fetch['events'], $dry, $prefix );
+				$g = Google_Calendar::sync_source( (string) $feed['id'], (string) ( $feed['label'] ?? $feed['id'] ), $cal_id, $fetch['events'], $dry, $prefix, trim( (string) ( $feed['gcal_color'] ?? '' ) ) );
 				if ( '' !== $g['error'] ) {
 					$stats['errors'][] = ( $fstat['label'] . ' (google): ' . $g['error'] );
 				} else {

@@ -35,11 +35,12 @@ final class Google_Calendar {
 	 *
 	 * $prefix controls the title prepend: '' = default "[label] " (back-compat,
 	 * matches the old Calendar Sync tags), any text = that text + space,
-	 * '-' = no prefix at all.
+	 * '-' = no prefix at all. $color is a Google event colorId '1'–'11'
+	 * ('' = calendar default) — the old Calendar Sync per-source colors.
 	 *
 	 * @return array{inserted:int,updated:int,deleted:int,error:string}
 	 */
-	public static function sync_source( string $feed_id, string $label, string $calendar_id, array $events, bool $dry = false, string $prefix = '' ): array {
+	public static function sync_source( string $feed_id, string $label, string $calendar_id, array $events, bool $dry = false, string $prefix = '', string $color = '' ): array {
 		$out = [ 'inserted' => 0, 'updated' => 0, 'deleted' => 0, 'error' => '' ];
 		if ( '' === $calendar_id ) {
 			$out['error'] = 'no calendar_id';
@@ -59,7 +60,7 @@ final class Google_Calendar {
 				continue;
 			}
 			$seen[ $uid ] = true;
-			$body = self::build_body( $feed_id, $label, $ev, $prefix );
+			$body = self::build_body( $feed_id, $label, $ev, $prefix, $color );
 			if ( isset( $managed[ $uid ] ) ) {
 				if ( self::differs( $managed[ $uid ], $body ) ) {
 					$out['updated']++;
@@ -130,6 +131,19 @@ final class Google_Calendar {
 	}
 
 	/* ---- API ---------------------------------------------------------- */
+
+	/**
+	 * Authenticated GET for read-side consumers — e.g. the GASF-Utilities
+	 * internal-calendar print view, which lists the destination calendar
+	 * (including staff-added events). Returns decoded array or WP_Error.
+	 */
+	public static function api_get( string $path ) {
+		$token = self::token();
+		if ( is_wp_error( $token ) ) {
+			return $token;
+		}
+		return self::api( 'GET', $path, null, $token );
+	}
 
 	private static function api( string $method, string $path, ?array $body, string $token ) {
 		$args = [
@@ -204,7 +218,7 @@ final class Google_Calendar {
 		return $out;
 	}
 
-	private static function build_body( string $feed_id, string $label, array $ev, string $prefix = '' ): array {
+	private static function build_body( string $feed_id, string $label, array $ev, string $prefix = '', string $color = '' ): array {
 		$all_day = ! empty( $ev['all_day'] );
 		$tz      = wp_timezone_string();
 		$pfx     = ( '-' === $prefix ) ? '' : ( '' !== $prefix ? $prefix . ' ' : '[' . $label . '] ' );
@@ -213,6 +227,9 @@ final class Google_Calendar {
 			'description' => (string) ( $ev['description'] ?? '' ),
 			'location'    => (string) ( $ev['location'] ?? '' ),
 		];
+		if ( '' !== $color && (int) $color >= 1 && (int) $color <= 11 ) {
+			$body['colorId'] = (string) (int) $color;
+		}
 		if ( $all_day ) {
 			// Google's all-day end.date is EXCLUSIVE, but our stored end is the
 			// inclusive last day. Add one day, or a single-day all-day event comes
@@ -229,8 +246,8 @@ final class Google_Calendar {
 			$body['recurrence'] = [ 'RRULE:' . $ev['rrule'] ];
 		}
 		// Content hash over everything we sync, so updates to description/location/
-		// rrule (not just summary/time) are detected. Scope on the stable feed id.
-		$hash = md5( wp_json_encode( [ $body['summary'], $body['description'], $body['location'], $body['start'], $body['end'], $body['recurrence'] ?? [] ] ) );
+		// rrule/color (not just summary/time) are detected. Scope on the stable feed id.
+		$hash = md5( wp_json_encode( [ $body['summary'], $body['description'], $body['location'], $body['start'], $body['end'], $body['recurrence'] ?? [], $body['colorId'] ?? '' ] ) );
 		$body['extendedProperties'] = [ 'private' => [ 'gasf_mgr' => self::MGR, 'gasf_src' => $feed_id, 'gasf_uid' => (string) ( $ev['uid'] ?? '' ), 'gasf_hash' => $hash ] ];
 		return $body;
 	}
