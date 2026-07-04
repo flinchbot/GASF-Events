@@ -88,6 +88,7 @@ final class Feeds_Admin {
 			'gcal_id'     => sanitize_text_field( wp_unslash( $_POST['gcal_id'] ?? '' ) ),
 			'gcal_color'  => ( '' !== (string) ( $_POST['gcal_color'] ?? '' ) && (int) $_POST['gcal_color'] >= 1 && (int) $_POST['gcal_color'] <= 11 ) ? (string) (int) $_POST['gcal_color'] : '',
 			'dest_ics'    => ! empty( $_POST['dest_ics'] ),
+			'link_source' => ! empty( $_POST['link_source'] ),
 		];
 		if ( 'ics' === $type ) {
 			$feed['url'] = esc_url_raw( wp_unslash( $_POST['url'] ?? '' ) );
@@ -128,6 +129,7 @@ final class Feeds_Admin {
 			$f['gcal_id']     = sanitize_text_field( wp_unslash( $_POST['gcal_id'] ?? '' ) );
 			$f['gcal_color']  = ( '' !== (string) ( $_POST['gcal_color'] ?? '' ) && (int) $_POST['gcal_color'] >= 1 && (int) $_POST['gcal_color'] <= 11 ) ? (string) (int) $_POST['gcal_color'] : '';
 			$f['dest_ics']    = ! empty( $_POST['dest_ics'] );
+			$f['link_source'] = ! empty( $_POST['link_source'] );
 			if ( $f['dest_ics'] && empty( $f['ics_token'] ) ) { // keep a stable URL once minted
 				$f['ics_token'] = wp_generate_password( 24, false, false );
 			}
@@ -349,6 +351,10 @@ final class Feeds_Admin {
 						<label style="margin-left:14px;"><input type="checkbox" name="dest_ics" value="1" <?php checked( ! empty( $editing['dest_ics'] ) ); ?>> <?php esc_html_e( '.ics feed', 'gasf-events' ); ?></label>
 						<label style="margin-left:14px;"><input type="checkbox" name="enabled" value="1" <?php checked( ! empty( $editing['enabled'] ) ); ?>> <?php esc_html_e( 'Enabled (auto-sync)', 'gasf-events' ); ?></label>
 					</p>
+					<p style="margin:0;">
+						<label><input type="checkbox" name="link_source" value="1" <?php checked( ! empty( $editing['link_source'] ) ); ?>> <?php esc_html_e( 'Link synced events back to their source (a “View original” button)', 'gasf-events' ); ?></label>
+						<span class="description"><?php esc_html_e( 'Off = native: the event stands on its own local page with no link out.', 'gasf-events' ); ?></span>
+					</p>
 					<?php $sub = Feeds::ics_subscribe_url( $editing ); if ( $sub ) : ?>
 						<p style="margin:0 0 4px;"><label><?php esc_html_e( 'Subscribable .ics URL (works even when auto-sync is off):', 'gasf-events' ); ?><br>
 							<input type="text" class="large-text code" readonly onclick="this.select()" value="<?php echo esc_attr( $sub ); ?>"></label></p>
@@ -376,6 +382,7 @@ final class Feeds_Admin {
 				<label><input type="checkbox" name="dest_gasf" value="1" checked> <?php esc_html_e( 'Events calendar', 'gasf-events' ); ?></label>
 				<label><input type="checkbox" name="dest_google" value="1"> <?php esc_html_e( 'Google', 'gasf-events' ); ?></label>
 				<label title="<?php esc_attr_e( 'Re-expose this feed as its own subscribable .ics URL (a secret link is minted).', 'gasf-events' ); ?>"><input type="checkbox" name="dest_ics" value="1"> <?php esc_html_e( '.ics feed', 'gasf-events' ); ?></label>
+				<label title="<?php esc_attr_e( 'Off (default): synced events are native — no link back to the source. On: add a “View original” button to the source event.', 'gasf-events' ); ?>"><input type="checkbox" name="link_source" value="1"> <?php esc_html_e( 'link to source', 'gasf-events' ); ?></label>
 				<?php submit_button( __( 'Add', 'gasf-events' ), 'secondary', '', false ); ?>
 			</form>
 
@@ -392,6 +399,7 @@ final class Feeds_Admin {
 				<label><input type="checkbox" name="dest_gasf" value="1" checked> <?php esc_html_e( 'Events calendar', 'gasf-events' ); ?></label>
 				<label><input type="checkbox" name="dest_google" value="1"> <?php esc_html_e( 'Google', 'gasf-events' ); ?></label>
 				<label title="<?php esc_attr_e( 'Re-expose this feed as its own subscribable .ics URL (a secret link is minted).', 'gasf-events' ); ?>"><input type="checkbox" name="dest_ics" value="1"> <?php esc_html_e( '.ics feed', 'gasf-events' ); ?></label>
+				<label title="<?php esc_attr_e( 'Off (default): synced events are native — no link back to the source. On: add a “View original” button to the source event.', 'gasf-events' ); ?>"><input type="checkbox" name="link_source" value="1"> <?php esc_html_e( 'link to source', 'gasf-events' ); ?></label>
 				<?php submit_button( __( 'Add', 'gasf-events' ), 'secondary', '', false ); ?>
 			</form>
 

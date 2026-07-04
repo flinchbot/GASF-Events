@@ -185,10 +185,12 @@ final class Feeds {
 			// Destination: GASF Calendar.
 			if ( ! empty( $feed['dest_gasf'] ) ) {
 				$seen = [];
+				$link_source = ! empty( $feed['link_source'] );
 				foreach ( $fetch['events'] as $ev ) {
 					if ( '' !== $prefix && '-' !== $prefix ) {
 						$ev['title'] = $prefix . ' ' . (string) ( $ev['title'] ?? '' );
 					}
+					$ev['link_source'] = $link_source;
 					$action = Event_Ingest::upsert( $ev, $source, (string) $feed['id'], $dry );
 					if ( isset( $stats[ $action ] ) ) {
 						$stats[ $action ]++;

@@ -21,7 +21,9 @@ final class Event_Ingest {
 	/**
 	 * Normalized event shape produced by every feed driver:
 	 *   uid, title, description, start (Y-m-d H:i:s local), end, all_day(bool),
-	 *   status(''|cancelled|…), cover_url, cover_id, series_id, is_series(bool)
+	 *   status(''|cancelled|…), source_url, cover_url, cover_id, series_id,
+	 *   is_series(bool). Feeds may also set link_source(bool) to surface the
+	 *   source_url as a "View original" button; default is a native event.
 	 *
 	 * @return string 'created'|'updated'|'skipped'
 	 */
@@ -80,6 +82,28 @@ final class Event_Ingest {
 		update_post_meta( $post_id, Meta::STATUS, in_array( $norm['status'] ?? '', Meta::STATUSES, true ) ? $norm['status'] : '' );
 		update_post_meta( $post_id, Meta::FB_MISSING, 0 );
 		Meta::recompute_timestamps( $post_id );
+
+		// Source event URL. Kept as hidden provenance always; surfaced as a
+		// "View original" More-info button ONLY when the feed opts to link back
+		// ($norm['link_source']). Default = native: the synced event stands on
+		// its own local permalink with no link out to the origin site.
+		$src_url = (string) ( $norm['source_url'] ?? '' );
+		if ( '' !== $src_url ) {
+			update_post_meta( $post_id, '_gasf_source_url', $src_url );
+		} else {
+			delete_post_meta( $post_id, '_gasf_source_url' );
+		}
+		if ( ! empty( $norm['link_source'] ) && '' !== $src_url ) {
+			update_post_meta( $post_id, Meta::MORE_INFO_URL, $src_url );
+			if ( '' === (string) get_post_meta( $post_id, Meta::MORE_INFO_TITLE, true ) ) {
+				update_post_meta( $post_id, Meta::MORE_INFO_TITLE, __( 'View original', 'gasf-events' ) );
+			}
+		} elseif ( '' !== $src_url && (string) get_post_meta( $post_id, Meta::MORE_INFO_URL, true ) === $src_url ) {
+			// Native mode: clear only a back-link we set on a prior sync — never
+			// a More-info URL an editor added by hand.
+			delete_post_meta( $post_id, Meta::MORE_INFO_URL );
+			delete_post_meta( $post_id, Meta::MORE_INFO_TITLE );
+		}
 
 		if ( ! empty( $norm['is_series'] ) && ! empty( $norm['series_id'] ) ) {
 			update_post_meta( $post_id, Meta::SERIES_ID, (string) $norm['series_id'] );

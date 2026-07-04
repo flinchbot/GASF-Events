@@ -226,7 +226,10 @@ final class Add_To_Calendar {
 				$lines[] = 'DTEND:' . self::utc( $end );
 			}
 			$lines[] = 'SUMMARY:' . self::esc( $event->title() );
-			$lines[] = 'DESCRIPTION:' . self::esc( self::plain( $event->description() ) . ' ' . $event->permalink() );
+			// The permalink lives in the standard URL property below, NOT jammed
+			// into the description — otherwise a site-to-site sync copies this
+			// site's link into the body of the other calendar's event.
+			$lines[] = 'DESCRIPTION:' . self::esc( self::plain( $event->description() ) );
 			$lines[] = 'LOCATION:' . self::esc( self::location_string( $event ) );
 			$lines[] = 'URL:' . $event->permalink();
 			if ( 'cancelled' === $event->status() ) {

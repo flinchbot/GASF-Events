@@ -115,10 +115,12 @@ final class ICS_Parser {
 			$end = $start;
 		}
 
-		$desc = (string) ( $rec['description'] ?? '' );
-		if ( ! empty( $rec['url'] ) ) {
-			$desc = trim( $desc . "\n\n" . $rec['url'] );
-		}
+		// The event URL is carried as a SEPARATE field — never appended to the
+		// description text. Appending it made a synced copy render the source
+		// site's permalink as a stray link in its body; events should read as
+		// native to the calendar they land on (Event_Ingest decides what, if
+		// anything, to do with source_url per the feed's link setting).
+		$desc = trim( (string) ( $rec['description'] ?? '' ) );
 
 		return [
 			'uid'         => (string) $rec['uid'],
@@ -128,6 +130,7 @@ final class ICS_Parser {
 			'end'         => $end,
 			'all_day'     => $all_day,
 			'status'      => ( isset( $rec['status'] ) && 'CANCELLED' === $rec['status'] ) ? 'cancelled' : '',
+			'source_url'  => (string) ( $rec['url'] ?? '' ),
 			'cover_url'   => '',
 			'cover_id'    => '',
 			'is_series'   => false,
