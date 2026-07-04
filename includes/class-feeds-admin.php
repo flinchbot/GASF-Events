@@ -235,7 +235,7 @@ final class Feeds_Admin {
 		<div class="wrap">
 			<h1><?php esc_html_e( 'Event Feeds', 'gasf-events' ); ?></h1>
 			<?php if ( ! $enabled ) : ?>
-				<div class="notice notice-warning"><p><strong><?php esc_html_e( 'Sync is OFF.', 'gasf-events' ); ?></strong> <?php esc_html_e( 'Nothing runs automatically. Use “Dry run” to preview. The existing MEC importer + Calendar Sync keep running until cutover.', 'gasf-events' ); ?></p></div>
+				<div class="notice notice-warning"><p><strong><?php esc_html_e( 'Sync is OFF.', 'gasf-events' ); ?></strong> <?php esc_html_e( 'No feed runs automatically until you tick “Enable automatic sync” below. Use “Dry run” to preview without writing anything.', 'gasf-events' ); ?></p></div>
 			<?php endif; ?>
 			<?php if ( null !== $expiry && $expiry < 14 ) : ?>
 				<div class="notice notice-error"><p><?php echo esc_html( sprintf( /* translators: %d days */ __( '⚠ A Facebook token expires in %d days.', 'gasf-events' ), $expiry ) ); ?></p></div>
@@ -274,7 +274,7 @@ final class Feeds_Admin {
 				<tbody>
 					<?php if ( ! $feeds ) : ?><tr><td colspan="6"><?php esc_html_e( 'No feeds yet.', 'gasf-events' ); ?></td></tr><?php endif; ?>
 					<?php foreach ( $feeds as $f ) :
-						$dests = array_filter( [ ! empty( $f['dest_gasf'] ) ? 'GASF' : '', ! empty( $f['dest_google'] ) ? 'Google' : '' ] );
+						$dests = array_filter( [ ! empty( $f['dest_gasf'] ) ? 'Events' : '', ! empty( $f['dest_google'] ) ? 'Google' : '' ] );
 						$src   = 'ics' === ( $f['type'] ?? '' ) ? ( $f['url'] ?? '' ) : ( $f['page_id'] ?? '' );
 						$is_editing = $editing && ( $editing['id'] ?? '' ) === ( $f['id'] ?? '' );
 						?>
@@ -334,7 +334,7 @@ final class Feeds_Admin {
 							<input type="number" name="gcal_color" min="1" max="11" value="<?php echo esc_attr( $editing['gcal_color'] ?? '' ); ?>" style="width:74px"></label>
 					</p>
 					<p>
-						<label><input type="checkbox" name="dest_gasf" value="1" <?php checked( ! empty( $editing['dest_gasf'] ) ); ?>> <?php esc_html_e( 'GASF calendar', 'gasf-events' ); ?></label>
+						<label><input type="checkbox" name="dest_gasf" value="1" <?php checked( ! empty( $editing['dest_gasf'] ) ); ?>> <?php esc_html_e( 'Events calendar', 'gasf-events' ); ?></label>
 						<label style="margin-left:14px;"><input type="checkbox" name="dest_google" value="1" <?php checked( ! empty( $editing['dest_google'] ) ); ?>> <?php esc_html_e( 'Google Calendar', 'gasf-events' ); ?></label>
 						<label style="margin-left:14px;"><input type="checkbox" name="enabled" value="1" <?php checked( ! empty( $editing['enabled'] ) ); ?>> <?php esc_html_e( 'Enabled', 'gasf-events' ); ?></label>
 					</p>
@@ -356,7 +356,7 @@ final class Feeds_Admin {
 				<input type="text" name="prefix" placeholder="<?php esc_attr_e( 'Title prefix, e.g. [GTB] (optional; - = none)', 'gasf-events' ); ?>" size="20">
 				<input type="text" name="gcal_id" placeholder="<?php esc_attr_e( 'Google Cal ID override (optional)', 'gasf-events' ); ?>" size="24">
 				<input type="number" name="gcal_color" min="1" max="11" placeholder="<?php esc_attr_e( 'Color 1–11', 'gasf-events' ); ?>" style="width:80px" title="<?php esc_attr_e( 'Google event colorId (optional)', 'gasf-events' ); ?>">
-				<label><input type="checkbox" name="dest_gasf" value="1" checked> <?php esc_html_e( 'GASF', 'gasf-events' ); ?></label>
+				<label><input type="checkbox" name="dest_gasf" value="1" checked> <?php esc_html_e( 'Events calendar', 'gasf-events' ); ?></label>
 				<label><input type="checkbox" name="dest_google" value="1"> <?php esc_html_e( 'Google', 'gasf-events' ); ?></label>
 				<?php submit_button( __( 'Add', 'gasf-events' ), 'secondary', '', false ); ?>
 			</form>
@@ -371,15 +371,13 @@ final class Feeds_Admin {
 				<input type="text" name="prefix" placeholder="<?php esc_attr_e( 'Title prefix, e.g. [GTB] (optional; - = none)', 'gasf-events' ); ?>" size="20">
 				<input type="text" name="gcal_id" placeholder="<?php esc_attr_e( 'Google Cal ID override (optional)', 'gasf-events' ); ?>" size="24">
 				<input type="number" name="gcal_color" min="1" max="11" placeholder="<?php esc_attr_e( 'Color 1–11', 'gasf-events' ); ?>" style="width:80px" title="<?php esc_attr_e( 'Google event colorId (optional)', 'gasf-events' ); ?>">
-				<label><input type="checkbox" name="dest_gasf" value="1" checked> <?php esc_html_e( 'GASF', 'gasf-events' ); ?></label>
+				<label><input type="checkbox" name="dest_gasf" value="1" checked> <?php esc_html_e( 'Events calendar', 'gasf-events' ); ?></label>
 				<label><input type="checkbox" name="dest_google" value="1"> <?php esc_html_e( 'Google', 'gasf-events' ); ?></label>
 				<?php submit_button( __( 'Add', 'gasf-events' ), 'secondary', '', false ); ?>
 			</form>
 
-			<form method="post" action="<?php echo $u; ?>" style="margin-top:8px;"><?php wp_nonce_field( 'gasf_feeds_edit' ); ?><input type="hidden" name="action" value="gasf_feeds_import_mec"><?php submit_button( __( 'Import feeds from MEC + Calendar Sync', 'gasf-events' ), 'link', '', false ); ?></form>
-
-			<h2><?php esc_html_e( 'Publishing destinations', 'gasf-events' ); ?></h2>
-			<p class="description"><?php esc_html_e( 'Outbound targets that the “Publish to …” bulk action on All Events can send to. Any event (manual, Facebook, or ICS) can be published; once published it stays in sync on every edit.', 'gasf-events' ); ?></p>
+			<h2><?php esc_html_e( 'Publish events OUT (Eventbrite)', 'gasf-events' ); ?></h2>
+			<p class="description"><?php esc_html_e( 'This is the opposite direction from the feeds above. Feeds bring events IN (to the Events calendar / Google). This sends selected events OUT to Eventbrite: set the token once here, then use the “Publish to Eventbrite” bulk action on the All Events screen. Leave it disabled if you don’t publish to Eventbrite from this site.', 'gasf-events' ); ?></p>
 			<?php $eb = Eventbrite::config(); ?>
 			<form method="post" action="<?php echo $u; ?>">
 				<?php wp_nonce_field( 'gasf_feeds_eb' ); ?>
