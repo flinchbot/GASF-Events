@@ -33,9 +33,13 @@ final class Google_Calendar {
 	 * Push $events (Event_Ingest normalized shape, + optional tzid/rrule/location)
 	 * to $calendar_id, tagged with $label. Returns stats.
 	 *
+	 * $prefix controls the title prepend: '' = default "[label] " (back-compat,
+	 * matches the old Calendar Sync tags), any text = that text + space,
+	 * '-' = no prefix at all.
+	 *
 	 * @return array{inserted:int,updated:int,deleted:int,error:string}
 	 */
-	public static function sync_source( string $feed_id, string $label, string $calendar_id, array $events, bool $dry = false ): array {
+	public static function sync_source( string $feed_id, string $label, string $calendar_id, array $events, bool $dry = false, string $prefix = '' ): array {
 		$out = [ 'inserted' => 0, 'updated' => 0, 'deleted' => 0, 'error' => '' ];
 		if ( '' === $calendar_id ) {
 			$out['error'] = 'no calendar_id';
@@ -55,7 +59,7 @@ final class Google_Calendar {
 				continue;
 			}
 			$seen[ $uid ] = true;
-			$body = self::build_body( $feed_id, $label, $ev );
+			$body = self::build_body( $feed_id, $label, $ev, $prefix );
 			if ( isset( $managed[ $uid ] ) ) {
 				if ( self::differs( $managed[ $uid ], $body ) ) {
 					$out['updated']++;
@@ -200,11 +204,12 @@ final class Google_Calendar {
 		return $out;
 	}
 
-	private static function build_body( string $feed_id, string $label, array $ev ): array {
+	private static function build_body( string $feed_id, string $label, array $ev, string $prefix = '' ): array {
 		$all_day = ! empty( $ev['all_day'] );
 		$tz      = wp_timezone_string();
+		$pfx     = ( '-' === $prefix ) ? '' : ( '' !== $prefix ? $prefix . ' ' : '[' . $label . '] ' );
 		$body    = [
-			'summary'     => '[' . $label . '] ' . wp_strip_all_tags( (string) ( $ev['title'] ?? '' ) ),
+			'summary'     => $pfx . wp_strip_all_tags( (string) ( $ev['title'] ?? '' ) ),
 			'description' => (string) ( $ev['description'] ?? '' ),
 			'location'    => (string) ( $ev['location'] ?? '' ),
 		];

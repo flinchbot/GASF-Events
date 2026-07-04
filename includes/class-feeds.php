@@ -122,10 +122,18 @@ final class Feeds {
 
 			$source = ( 'ics' === ( $feed['type'] ?? '' ) ) ? 'ics' : 'facebook';
 
+			// Optional per-feed title prefix, e.g. "[GTB]". For the GASF destination
+			// '' and '-' both mean "no prefix"; for Google, '' keeps the default
+			// "[label]" tag and '-' suppresses it (see Google_Calendar::sync_source).
+			$prefix = trim( (string) ( $feed['prefix'] ?? '' ) );
+
 			// Destination: GASF Calendar.
 			if ( ! empty( $feed['dest_gasf'] ) ) {
 				$seen = [];
 				foreach ( $fetch['events'] as $ev ) {
+					if ( '' !== $prefix && '-' !== $prefix ) {
+						$ev['title'] = $prefix . ' ' . (string) ( $ev['title'] ?? '' );
+					}
 					$action = Event_Ingest::upsert( $ev, $source, (string) $feed['id'], $dry );
 					if ( isset( $stats[ $action ] ) ) {
 						$stats[ $action ]++;
@@ -141,8 +149,10 @@ final class Feeds {
 
 			// Destination: Google Calendar. Scope on the STABLE feed id (not the
 			// editable label) so renaming a feed doesn't orphan + duplicate.
-			if ( ! empty( $feed['dest_google'] ) && $gcal['calendar_id'] && Google_Calendar::available() ) {
-				$g = Google_Calendar::sync_source( (string) $feed['id'], (string) ( $feed['label'] ?? $feed['id'] ), $gcal['calendar_id'], $fetch['events'], $dry );
+			// A feed may target its own calendar via 'gcal_id'; global is the default.
+			$cal_id = trim( (string) ( $feed['gcal_id'] ?? '' ) ) ?: (string) $gcal['calendar_id'];
+			if ( ! empty( $feed['dest_google'] ) && $cal_id && Google_Calendar::available() ) {
+				$g = Google_Calendar::sync_source( (string) $feed['id'], (string) ( $feed['label'] ?? $feed['id'] ), $cal_id, $fetch['events'], $dry, $prefix );
 				if ( '' !== $g['error'] ) {
 					$stats['errors'][] = ( $fstat['label'] . ' (google): ' . $g['error'] );
 				} else {

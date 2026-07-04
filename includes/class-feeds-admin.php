@@ -83,6 +83,8 @@ final class Feeds_Admin {
 			'dest_gasf'   => ! empty( $_POST['dest_gasf'] ),
 			'dest_google' => ! empty( $_POST['dest_google'] ),
 			'filter'      => sanitize_text_field( wp_unslash( $_POST['filter'] ?? '' ) ),
+			'prefix'      => sanitize_text_field( wp_unslash( $_POST['prefix'] ?? '' ) ),
+			'gcal_id'     => sanitize_text_field( wp_unslash( $_POST['gcal_id'] ?? '' ) ),
 		];
 		if ( 'ics' === $type ) {
 			$feed['url'] = esc_url_raw( wp_unslash( $_POST['url'] ?? '' ) );
@@ -191,7 +193,7 @@ final class Feeds_Admin {
 				<?php wp_nonce_field( 'gasf_feeds_gate' ); ?>
 				<input type="hidden" name="action" value="gasf_feeds_gate">
 				<p><label><input type="checkbox" name="enable" value="1" <?php checked( $enabled ); ?>> <strong><?php esc_html_e( 'Enable automatic sync (every 15 min)', 'gasf-events' ); ?></strong></label></p>
-				<p><label><?php esc_html_e( 'Google Calendar ID (destination):', 'gasf-events' ); ?>
+				<p><label><?php esc_html_e( 'Google Calendar ID (default destination — a feed can override with its own):', 'gasf-events' ); ?>
 					<input type="text" name="calendar_id" size="48" value="<?php echo esc_attr( $gcal['calendar_id'] ); ?>" placeholder="…@group.calendar.google.com"></label>
 					<span style="color:<?php echo Google_Calendar::available() ? '#46810b' : '#b32d2e'; ?>;"><?php echo Google_Calendar::available() ? esc_html__( '✓ key found', 'gasf-events' ) : esc_html__( '✗ service-account key not found', 'gasf-events' ); ?></span>
 				</p>
@@ -218,10 +220,15 @@ final class Feeds_Admin {
 						$src   = 'ics' === ( $f['type'] ?? '' ) ? ( $f['url'] ?? '' ) : ( $f['page_id'] ?? '' );
 						?>
 						<tr>
-							<td><?php echo esc_html( $f['label'] ?? '' ); ?><?php if ( ! empty( $f['filter'] ) ) : ?><br><small style="color:#646970;"><?php echo esc_html( sprintf( /* translators: %s filter text */ __( 'filter: “%s”', 'gasf-events' ), $f['filter'] ) ); ?></small><?php endif; ?></td>
+							<td><?php echo esc_html( $f['label'] ?? '' ); ?><?php
+								$mods = array_filter( [
+									! empty( $f['filter'] ) ? sprintf( /* translators: %s filter text */ __( 'filter: “%s”', 'gasf-events' ), $f['filter'] ) : '',
+									! empty( $f['prefix'] ) ? sprintf( /* translators: %s title prefix */ __( 'prefix: “%s”', 'gasf-events' ), $f['prefix'] ) : '',
+								] );
+								if ( $mods ) : ?><br><small style="color:#646970;"><?php echo esc_html( implode( ' · ', $mods ) ); ?></small><?php endif; ?></td>
 							<td><?php echo esc_html( strtoupper( $f['type'] ?? '' ) ); ?></td>
 							<td><code style="font-size:11px;"><?php echo esc_html( mb_strimwidth( (string) $src, 0, 48, '…' ) ); ?></code></td>
-							<td><?php echo esc_html( $dests ? implode( ' + ', $dests ) : '—' ); ?></td>
+							<td><?php echo esc_html( $dests ? implode( ' + ', $dests ) : '—' ); ?><?php if ( ! empty( $f['dest_google'] ) && ! empty( $f['gcal_id'] ) ) : ?><br><small style="color:#646970;"><?php echo esc_html( mb_strimwidth( (string) $f['gcal_id'], 0, 28, '…' ) ); ?></small><?php endif; ?></td>
 							<td><?php echo ! empty( $f['enabled'] ) ? '✓' : '—'; ?></td>
 							<td>
 								<form method="post" action="<?php echo $u; ?>" style="display:inline;"><?php wp_nonce_field( 'gasf_feeds_edit' ); ?><input type="hidden" name="action" value="gasf_feeds_toggle"><input type="hidden" name="id" value="<?php echo esc_attr( $f['id'] ); ?>"><button class="button-link"><?php echo ! empty( $f['enabled'] ) ? esc_html__( 'Disable', 'gasf-events' ) : esc_html__( 'Enable', 'gasf-events' ); ?></button></form> |
@@ -242,6 +249,8 @@ final class Feeds_Admin {
 				<input type="text" name="access_token" placeholder="<?php esc_attr_e( 'Page access token', 'gasf-events' ); ?>" size="32" required>
 				<input type="date" name="expire_at" title="<?php esc_attr_e( 'Token expiry', 'gasf-events' ); ?>">
 				<input type="text" name="filter" placeholder="<?php esc_attr_e( 'Only titles containing… (optional)', 'gasf-events' ); ?>" size="24">
+				<input type="text" name="prefix" placeholder="<?php esc_attr_e( 'Title prefix, e.g. [GTB] (optional; - = none)', 'gasf-events' ); ?>" size="20">
+				<input type="text" name="gcal_id" placeholder="<?php esc_attr_e( 'Google Cal ID override (optional)', 'gasf-events' ); ?>" size="24">
 				<label><input type="checkbox" name="dest_gasf" value="1" checked> <?php esc_html_e( 'GASF', 'gasf-events' ); ?></label>
 				<label><input type="checkbox" name="dest_google" value="1"> <?php esc_html_e( 'Google', 'gasf-events' ); ?></label>
 				<?php submit_button( __( 'Add', 'gasf-events' ), 'secondary', '', false ); ?>
@@ -254,6 +263,8 @@ final class Feeds_Admin {
 				<input type="text" name="label" placeholder="<?php esc_attr_e( 'Label', 'gasf-events' ); ?>" required>
 				<input type="url" name="url" placeholder="https://…/calendar.ics" size="40" required>
 				<input type="text" name="filter" placeholder="<?php esc_attr_e( 'Only titles containing… (optional)', 'gasf-events' ); ?>" size="24">
+				<input type="text" name="prefix" placeholder="<?php esc_attr_e( 'Title prefix, e.g. [GTB] (optional; - = none)', 'gasf-events' ); ?>" size="20">
+				<input type="text" name="gcal_id" placeholder="<?php esc_attr_e( 'Google Cal ID override (optional)', 'gasf-events' ); ?>" size="24">
 				<label><input type="checkbox" name="dest_gasf" value="1" checked> <?php esc_html_e( 'GASF', 'gasf-events' ); ?></label>
 				<label><input type="checkbox" name="dest_google" value="1"> <?php esc_html_e( 'Google', 'gasf-events' ); ?></label>
 				<?php submit_button( __( 'Add', 'gasf-events' ), 'secondary', '', false ); ?>
