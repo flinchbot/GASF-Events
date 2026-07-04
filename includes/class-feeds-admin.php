@@ -82,6 +82,7 @@ final class Feeds_Admin {
 			'enabled'     => ! empty( $_POST['enabled'] ),
 			'dest_gasf'   => ! empty( $_POST['dest_gasf'] ),
 			'dest_google' => ! empty( $_POST['dest_google'] ),
+			'filter'      => sanitize_text_field( wp_unslash( $_POST['filter'] ?? '' ) ),
 		];
 		if ( 'ics' === $type ) {
 			$feed['url'] = esc_url_raw( wp_unslash( $_POST['url'] ?? '' ) );
@@ -217,7 +218,7 @@ final class Feeds_Admin {
 						$src   = 'ics' === ( $f['type'] ?? '' ) ? ( $f['url'] ?? '' ) : ( $f['page_id'] ?? '' );
 						?>
 						<tr>
-							<td><?php echo esc_html( $f['label'] ?? '' ); ?></td>
+							<td><?php echo esc_html( $f['label'] ?? '' ); ?><?php if ( ! empty( $f['filter'] ) ) : ?><br><small style="color:#646970;"><?php echo esc_html( sprintf( /* translators: %s filter text */ __( 'filter: “%s”', 'gasf-events' ), $f['filter'] ) ); ?></small><?php endif; ?></td>
 							<td><?php echo esc_html( strtoupper( $f['type'] ?? '' ) ); ?></td>
 							<td><code style="font-size:11px;"><?php echo esc_html( mb_strimwidth( (string) $src, 0, 48, '…' ) ); ?></code></td>
 							<td><?php echo esc_html( $dests ? implode( ' + ', $dests ) : '—' ); ?></td>
@@ -240,6 +241,7 @@ final class Feeds_Admin {
 				<input type="text" name="page_id" placeholder="<?php esc_attr_e( 'Page id / username', 'gasf-events' ); ?>" value="GermanTampa" required>
 				<input type="text" name="access_token" placeholder="<?php esc_attr_e( 'Page access token', 'gasf-events' ); ?>" size="32" required>
 				<input type="date" name="expire_at" title="<?php esc_attr_e( 'Token expiry', 'gasf-events' ); ?>">
+				<input type="text" name="filter" placeholder="<?php esc_attr_e( 'Only titles containing… (optional)', 'gasf-events' ); ?>" size="24">
 				<label><input type="checkbox" name="dest_gasf" value="1" checked> <?php esc_html_e( 'GASF', 'gasf-events' ); ?></label>
 				<label><input type="checkbox" name="dest_google" value="1"> <?php esc_html_e( 'Google', 'gasf-events' ); ?></label>
 				<?php submit_button( __( 'Add', 'gasf-events' ), 'secondary', '', false ); ?>
@@ -251,6 +253,7 @@ final class Feeds_Admin {
 				<input type="hidden" name="action" value="gasf_feeds_add"><input type="hidden" name="type" value="ics">
 				<input type="text" name="label" placeholder="<?php esc_attr_e( 'Label', 'gasf-events' ); ?>" required>
 				<input type="url" name="url" placeholder="https://…/calendar.ics" size="40" required>
+				<input type="text" name="filter" placeholder="<?php esc_attr_e( 'Only titles containing… (optional)', 'gasf-events' ); ?>" size="24">
 				<label><input type="checkbox" name="dest_gasf" value="1" checked> <?php esc_html_e( 'GASF', 'gasf-events' ); ?></label>
 				<label><input type="checkbox" name="dest_google" value="1"> <?php esc_html_e( 'Google', 'gasf-events' ); ?></label>
 				<?php submit_button( __( 'Add', 'gasf-events' ), 'secondary', '', false ); ?>

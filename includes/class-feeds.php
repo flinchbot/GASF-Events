@@ -104,6 +104,22 @@ final class Feeds {
 				$stats['feeds'][]  = $fstat;
 				continue; // never prune/delete when a fetch failed
 			}
+
+			// Optional per-feed title filter (case-insensitive CONTAINS) — e.g. the
+			// Krampus site subscribes to the main calendar.ics with filter "Krampus".
+			// Applied before both destinations, so prune_missing() stays consistent:
+			// only filtered-in events ever carry this feed id.
+			$filter = trim( (string) ( $feed['filter'] ?? '' ) );
+			if ( '' !== $filter ) {
+				$needle          = mb_strtolower( $filter );
+				$fetch['events'] = array_values( array_filter(
+					$fetch['events'],
+					static fn( $ev ) => false !== mb_strpos( mb_strtolower( (string) ( $ev['title'] ?? '' ) ), $needle )
+				) );
+				$fstat['filter']  = $filter;
+				$fstat['fetched'] = count( $fetch['events'] );
+			}
+
 			$source = ( 'ics' === ( $feed['type'] ?? '' ) ) ? 'ics' : 'facebook';
 
 			// Destination: GASF Calendar.
