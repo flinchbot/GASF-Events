@@ -87,6 +87,7 @@ final class Feeds_Admin {
 			'prefix'      => sanitize_text_field( wp_unslash( $_POST['prefix'] ?? '' ) ),
 			'gcal_id'     => sanitize_text_field( wp_unslash( $_POST['gcal_id'] ?? '' ) ),
 			'gcal_color'  => ( '' !== (string) ( $_POST['gcal_color'] ?? '' ) && (int) $_POST['gcal_color'] >= 1 && (int) $_POST['gcal_color'] <= 11 ) ? (string) (int) $_POST['gcal_color'] : '',
+			'dest_ics'    => ! empty( $_POST['dest_ics'] ),
 		];
 		if ( 'ics' === $type ) {
 			$feed['url'] = esc_url_raw( wp_unslash( $_POST['url'] ?? '' ) );
@@ -94,6 +95,9 @@ final class Feeds_Admin {
 			$feed['page_id']      = sanitize_text_field( wp_unslash( $_POST['page_id'] ?? '' ) );
 			$feed['access_token'] = trim( (string) wp_unslash( $_POST['access_token'] ?? '' ) );
 			$feed['expire_at']    = ! empty( $_POST['expire_at'] ) ? (int) strtotime( sanitize_text_field( wp_unslash( $_POST['expire_at'] ) ) ) : 0;
+		}
+		if ( $feed['dest_ics'] ) {
+			$feed['ics_token'] = wp_generate_password( 24, false, false );
 		}
 		$feeds[] = $feed;
 		Feeds::save_feeds( $feeds );
@@ -123,6 +127,10 @@ final class Feeds_Admin {
 			$f['prefix']      = sanitize_text_field( wp_unslash( $_POST['prefix'] ?? '' ) );
 			$f['gcal_id']     = sanitize_text_field( wp_unslash( $_POST['gcal_id'] ?? '' ) );
 			$f['gcal_color']  = ( '' !== (string) ( $_POST['gcal_color'] ?? '' ) && (int) $_POST['gcal_color'] >= 1 && (int) $_POST['gcal_color'] <= 11 ) ? (string) (int) $_POST['gcal_color'] : '';
+			$f['dest_ics']    = ! empty( $_POST['dest_ics'] );
+			if ( $f['dest_ics'] && empty( $f['ics_token'] ) ) { // keep a stable URL once minted
+				$f['ics_token'] = wp_generate_password( 24, false, false );
+			}
 			if ( 'ics' === ( $f['type'] ?? '' ) ) {
 				$f['url'] = esc_url_raw( wp_unslash( $_POST['url'] ?? '' ) );
 			} else {
@@ -148,6 +156,8 @@ final class Feeds_Admin {
 		$this->guard( 'gasf_feeds_edit' );
 		$id = sanitize_text_field( wp_unslash( $_POST['id'] ?? '' ) );
 		Feeds::save_feeds( array_filter( Feeds::feeds(), static fn( $f ) => ( $f['id'] ?? '' ) !== $id ) );
+		delete_transient( 'gasf_feed_ics_' . $id );  // passthrough .ics cache + last-good
+		delete_option( 'gasf_feed_ics_lg_' . $id );
 		$this->back();
 	}
 
@@ -274,7 +284,7 @@ final class Feeds_Admin {
 				<tbody>
 					<?php if ( ! $feeds ) : ?><tr><td colspan="6"><?php esc_html_e( 'No feeds yet.', 'gasf-events' ); ?></td></tr><?php endif; ?>
 					<?php foreach ( $feeds as $f ) :
-						$dests = array_filter( [ ! empty( $f['dest_gasf'] ) ? 'Events' : '', ! empty( $f['dest_google'] ) ? 'Google' : '' ] );
+						$dests = array_filter( [ ! empty( $f['dest_gasf'] ) ? 'Events' : '', ! empty( $f['dest_google'] ) ? 'Google' : '', ! empty( $f['dest_ics'] ) ? '.ics' : '' ] );
 						$src   = 'ics' === ( $f['type'] ?? '' ) ? ( $f['url'] ?? '' ) : ( $f['page_id'] ?? '' );
 						$is_editing = $editing && ( $editing['id'] ?? '' ) === ( $f['id'] ?? '' );
 						?>
@@ -287,7 +297,7 @@ final class Feeds_Admin {
 								if ( $mods ) : ?><br><small style="color:#646970;"><?php echo esc_html( implode( ' · ', $mods ) ); ?></small><?php endif; ?></td>
 							<td><?php echo esc_html( strtoupper( $f['type'] ?? '' ) ); ?></td>
 							<td><code style="font-size:11px;"><?php echo esc_html( mb_strimwidth( (string) $src, 0, 48, '…' ) ); ?></code></td>
-							<td><?php echo esc_html( $dests ? implode( ' + ', $dests ) : '—' ); ?><?php if ( ! empty( $f['dest_google'] ) && ! empty( $f['gcal_id'] ) ) : ?><br><small style="color:#646970;"><?php echo esc_html( mb_strimwidth( (string) $f['gcal_id'], 0, 28, '…' ) ); ?></small><?php endif; ?></td>
+							<td><?php echo esc_html( $dests ? implode( ' + ', $dests ) : '—' ); ?><?php if ( ! empty( $f['dest_google'] ) && ! empty( $f['gcal_id'] ) ) : ?><br><small style="color:#646970;"><?php echo esc_html( mb_strimwidth( (string) $f['gcal_id'], 0, 28, '…' ) ); ?></small><?php endif; ?><?php $sub = Feeds::ics_subscribe_url( $f ); if ( $sub ) : ?><br><a href="<?php echo esc_url( $sub ); ?>" target="_blank" rel="noopener" style="font-size:11px;">.ics&nbsp;link&nbsp;&#8599;</a><?php endif; ?></td>
 							<td><?php echo ! empty( $f['enabled'] ) ? '✓' : '—'; ?></td>
 							<td>
 								<a href="<?php echo esc_url( add_query_arg( 'edit', $f['id'], $this->url() ) ); ?>"><?php esc_html_e( 'Edit', 'gasf-events' ); ?></a> |
@@ -336,8 +346,15 @@ final class Feeds_Admin {
 					<p>
 						<label><input type="checkbox" name="dest_gasf" value="1" <?php checked( ! empty( $editing['dest_gasf'] ) ); ?>> <?php esc_html_e( 'Events calendar', 'gasf-events' ); ?></label>
 						<label style="margin-left:14px;"><input type="checkbox" name="dest_google" value="1" <?php checked( ! empty( $editing['dest_google'] ) ); ?>> <?php esc_html_e( 'Google Calendar', 'gasf-events' ); ?></label>
-						<label style="margin-left:14px;"><input type="checkbox" name="enabled" value="1" <?php checked( ! empty( $editing['enabled'] ) ); ?>> <?php esc_html_e( 'Enabled', 'gasf-events' ); ?></label>
+						<label style="margin-left:14px;"><input type="checkbox" name="dest_ics" value="1" <?php checked( ! empty( $editing['dest_ics'] ) ); ?>> <?php esc_html_e( '.ics feed', 'gasf-events' ); ?></label>
+						<label style="margin-left:14px;"><input type="checkbox" name="enabled" value="1" <?php checked( ! empty( $editing['enabled'] ) ); ?>> <?php esc_html_e( 'Enabled (auto-sync)', 'gasf-events' ); ?></label>
 					</p>
+					<?php $sub = Feeds::ics_subscribe_url( $editing ); if ( $sub ) : ?>
+						<p style="margin:0 0 4px;"><label><?php esc_html_e( 'Subscribable .ics URL (works even when auto-sync is off):', 'gasf-events' ); ?><br>
+							<input type="text" class="large-text code" readonly onclick="this.select()" value="<?php echo esc_attr( $sub ); ?>"></label></p>
+					<?php elseif ( ! empty( $editing['dest_ics'] ) ) : ?>
+						<p class="description"><?php esc_html_e( 'Save to mint the .ics URL.', 'gasf-events' ); ?></p>
+					<?php endif; ?>
 					<?php submit_button( __( 'Save changes', 'gasf-events' ), 'primary', '', false ); ?>
 					<a href="<?php echo esc_url( $this->url() ); ?>" class="button" style="margin-left:6px;"><?php esc_html_e( 'Cancel', 'gasf-events' ); ?></a>
 				</form>
@@ -358,6 +375,7 @@ final class Feeds_Admin {
 				<input type="number" name="gcal_color" min="1" max="11" placeholder="<?php esc_attr_e( 'Color 1–11', 'gasf-events' ); ?>" style="width:80px" title="<?php esc_attr_e( 'Google event colorId (optional)', 'gasf-events' ); ?>">
 				<label><input type="checkbox" name="dest_gasf" value="1" checked> <?php esc_html_e( 'Events calendar', 'gasf-events' ); ?></label>
 				<label><input type="checkbox" name="dest_google" value="1"> <?php esc_html_e( 'Google', 'gasf-events' ); ?></label>
+				<label title="<?php esc_attr_e( 'Re-expose this feed as its own subscribable .ics URL (a secret link is minted).', 'gasf-events' ); ?>"><input type="checkbox" name="dest_ics" value="1"> <?php esc_html_e( '.ics feed', 'gasf-events' ); ?></label>
 				<?php submit_button( __( 'Add', 'gasf-events' ), 'secondary', '', false ); ?>
 			</form>
 
@@ -373,6 +391,7 @@ final class Feeds_Admin {
 				<input type="number" name="gcal_color" min="1" max="11" placeholder="<?php esc_attr_e( 'Color 1–11', 'gasf-events' ); ?>" style="width:80px" title="<?php esc_attr_e( 'Google event colorId (optional)', 'gasf-events' ); ?>">
 				<label><input type="checkbox" name="dest_gasf" value="1" checked> <?php esc_html_e( 'Events calendar', 'gasf-events' ); ?></label>
 				<label><input type="checkbox" name="dest_google" value="1"> <?php esc_html_e( 'Google', 'gasf-events' ); ?></label>
+				<label title="<?php esc_attr_e( 'Re-expose this feed as its own subscribable .ics URL (a secret link is minted).', 'gasf-events' ); ?>"><input type="checkbox" name="dest_ics" value="1"> <?php esc_html_e( '.ics feed', 'gasf-events' ); ?></label>
 				<?php submit_button( __( 'Add', 'gasf-events' ), 'secondary', '', false ); ?>
 			</form>
 

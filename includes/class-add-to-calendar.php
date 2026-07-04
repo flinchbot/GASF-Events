@@ -22,6 +22,7 @@ final class Add_To_Calendar {
 
 	public function add_query_var(): void {
 		add_rewrite_tag( '%gasf_ics%', '([^&]+)' );
+		add_rewrite_tag( '%gasf_feed_ics%', '([^&]+)' ); // per-feed passthrough .ics
 	}
 
 	/** Pretty subscribe URL: /<slug>/calendar.ics → ?gasf_ics=all. */
@@ -35,6 +36,48 @@ final class Add_To_Calendar {
 	 *   ?gasf_ics=all               → the whole upcoming calendar (subscribable feed)
 	 */
 	public function maybe_serve_ics(): void {
+
+		// Per-feed passthrough: ?gasf_feed_ics=<token> re-emits that feed's
+		// fetched → filtered → prefixed events as a subscribable .ics, WITHOUT
+		// requiring them to be stored in the Events calendar. Token = the feed's
+		// unguessable ics_token. Cached 15 min (short 2-min hold on fetch error,
+		// falling back to the last good build) so subscriber polling can't hammer
+		// the upstream source.
+		$feed_tok = (string) ( get_query_var( 'gasf_feed_ics' ) ?: ( $_GET['gasf_feed_ics'] ?? '' ) );
+		if ( '' !== $feed_tok ) {
+			$feed = Feeds::find_by_ics_token( $feed_tok );
+			if ( ! $feed ) {
+				status_header( 404 );
+				nocache_headers();
+				header( 'Content-Type: text/plain; charset=utf-8' );
+				echo 'Not found';
+				exit;
+			}
+			$id  = (string) $feed['id'];
+			$key = 'gasf_feed_ics_' . $id;
+			$doc = get_transient( $key );
+			if ( false === $doc ) {
+				$res = Feeds::fetch_transformed( $feed );
+				if ( '' === $res['error'] ) {
+					$doc = self::ics_document_from_norm( $res['events'], (string) ( $feed['label'] ?? 'Feed' ) );
+					set_transient( $key, $doc, 15 * MINUTE_IN_SECONDS );
+					update_option( 'gasf_feed_ics_lg_' . $id, $doc, false ); // last-good fallback
+				} else {
+					$doc = (string) get_option( 'gasf_feed_ics_lg_' . $id, '' );
+					if ( '' === $doc ) {
+						$doc = self::ics_document_from_norm( [], (string) ( $feed['label'] ?? 'Feed' ) );
+					}
+					set_transient( $key, $doc, 2 * MINUTE_IN_SECONDS );
+				}
+			}
+			header( 'Content-Type: text/calendar; charset=utf-8' );
+			header( 'Content-Disposition: inline; filename="feed-' . $id . '.ics"' );
+			header( 'Cache-Control: public, max-age=900' );
+			header( 'X-WR-CALNAME: ' . (string) ( $feed['label'] ?? 'Feed' ) );
+			echo $doc; // phpcs:ignore WordPress.Security.EscapeOutput
+			exit;
+		}
+
 		$mode = (string) ( get_query_var( 'gasf_ics' ) ?: ( $_GET['gasf_ics'] ?? '' ) );
 
 		if ( 'event' === $mode ) {
@@ -193,6 +236,87 @@ final class Add_To_Calendar {
 		}
 		$lines[] = 'END:VCALENDAR';
 		return implode( "\r\n", array_map( [ self::class, 'fold' ], $lines ) ) . "\r\n";
+	}
+
+	/**
+	 * Build a VCALENDAR from normalized feed event arrays (uid,title,description,
+	 * start,end,all_day,status,location,rrule) rather than local Event posts.
+	 * Used by the per-feed passthrough .ics endpoint. start/end are 'Y-m-d H:i:s'
+	 * strings in the site timezone; timed events are emitted in UTC (…Z) so no
+	 * VTIMEZONE block is needed.
+	 */
+	public static function ics_document_from_norm( array $events, string $calname = '' ): string {
+		$host  = wp_parse_url( home_url(), PHP_URL_HOST );
+		$tz    = wp_timezone();
+		$lines = [
+			'BEGIN:VCALENDAR',
+			'VERSION:2.0',
+			'PRODID:-//German-American Society//GASF Events//EN',
+			'CALSCALE:GREGORIAN',
+		];
+		if ( '' !== $calname ) {
+			$lines[] = 'X-WR-CALNAME:' . self::esc( $calname );
+		}
+		foreach ( $events as $ev ) {
+			$start = (string) ( $ev['start'] ?? '' );
+			if ( '' === $start ) {
+				continue;
+			}
+			$end     = (string) ( $ev['end'] ?? '' ) ?: $start;
+			$all_day = ! empty( $ev['all_day'] );
+			$uid     = (string) ( $ev['uid'] ?? '' );
+			if ( '' === $uid ) {
+				$uid = md5( (string) ( $ev['title'] ?? '' ) . $start );
+			}
+			$lines[] = 'BEGIN:VEVENT';
+			$lines[] = 'UID:gasf-feed-' . preg_replace( '/[^A-Za-z0-9_.\-]/', '', $uid ) . '@' . $host;
+			$lines[] = 'DTSTAMP:' . gmdate( 'Ymd\THis\Z' );
+			if ( $all_day ) {
+				$lines[] = 'DTSTART;VALUE=DATE:' . self::local_ymd( $start, $tz );
+				// All-day DTEND is exclusive: the day after the (inclusive) end date.
+				try {
+					$ed = ( new \DateTimeImmutable( $end, $tz ) )->modify( '+1 day' )->format( 'Ymd' );
+				} catch ( \Exception $e ) {
+					$ed = self::local_ymd( $end, $tz );
+				}
+				$lines[] = 'DTEND;VALUE=DATE:' . $ed;
+			} else {
+				$lines[] = 'DTSTART:' . self::local_utc( $start, $tz );
+				$lines[] = 'DTEND:' . self::local_utc( $end, $tz );
+			}
+			$lines[] = 'SUMMARY:' . self::esc( (string) ( $ev['title'] ?? '' ) );
+			if ( ! empty( $ev['description'] ) ) {
+				$lines[] = 'DESCRIPTION:' . self::esc( self::plain( (string) $ev['description'] ) );
+			}
+			if ( ! empty( $ev['location'] ) ) {
+				$lines[] = 'LOCATION:' . self::esc( (string) $ev['location'] );
+			}
+			if ( ! empty( $ev['rrule'] ) ) {
+				$lines[] = 'RRULE:' . $ev['rrule']; // syntactic semicolons — never escaped
+			}
+			if ( 'cancelled' === ( $ev['status'] ?? '' ) ) {
+				$lines[] = 'STATUS:CANCELLED';
+			}
+			$lines[] = 'END:VEVENT';
+		}
+		$lines[] = 'END:VCALENDAR';
+		return implode( "\r\n", array_map( [ self::class, 'fold' ], $lines ) ) . "\r\n";
+	}
+
+	private static function local_utc( string $local, \DateTimeZone $tz ): string {
+		try {
+			return ( new \DateTimeImmutable( $local, $tz ) )->setTimezone( new \DateTimeZone( 'UTC' ) )->format( 'Ymd\THis\Z' );
+		} catch ( \Exception $e ) {
+			return gmdate( 'Ymd\THis\Z' );
+		}
+	}
+
+	private static function local_ymd( string $local, \DateTimeZone $tz ): string {
+		try {
+			return ( new \DateTimeImmutable( $local, $tz ) )->format( 'Ymd' );
+		} catch ( \Exception $e ) {
+			return gmdate( 'Ymd' );
+		}
 	}
 
 	/** RFC 5545 line folding: split content lines longer than 75 octets. */

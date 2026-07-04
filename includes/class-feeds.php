@@ -66,6 +66,65 @@ final class Feeds {
 		return wp_parse_args( (array) get_option( self::OPT_GCAL, [] ), [ 'calendar_id' => '' ] );
 	}
 
+	/**
+	 * Apply a feed's title filter (case-insensitive CONTAINS). Shared by the
+	 * sync run and the passthrough .ics endpoint so they can never drift.
+	 */
+	public static function apply_filter( array $feed, array $events ): array {
+		$filter = trim( (string) ( $feed['filter'] ?? '' ) );
+		if ( '' === $filter ) {
+			return $events;
+		}
+		$needle = mb_strtolower( $filter );
+		return array_values( array_filter(
+			$events,
+			static fn( $ev ) => false !== mb_strpos( mb_strtolower( (string) ( $ev['title'] ?? '' ) ), $needle )
+		) );
+	}
+
+	/**
+	 * Fetch a feed and return its filtered + title-prefixed normalized events —
+	 * the exact set the passthrough .ics endpoint re-emits (no calendar writes).
+	 * @return array{events:array,error:string}
+	 */
+	public static function fetch_transformed( array $feed ): array {
+		$fetch = self::fetch_feed( $feed );
+		if ( '' !== $fetch['error'] ) {
+			return $fetch;
+		}
+		$events = self::apply_filter( $feed, $fetch['events'] );
+		$prefix = trim( (string) ( $feed['prefix'] ?? '' ) );
+		if ( '' !== $prefix && '-' !== $prefix ) {
+			foreach ( $events as &$ev ) {
+				$ev['title'] = $prefix . ' ' . (string) ( $ev['title'] ?? '' );
+			}
+			unset( $ev );
+		}
+		return [ 'events' => $events, 'error' => '' ];
+	}
+
+	/** Find the feed owning a passthrough-.ics token (constant-time compare). */
+	public static function find_by_ics_token( string $token ): ?array {
+		if ( '' === $token ) {
+			return null;
+		}
+		foreach ( self::feeds() as $f ) {
+			if ( ! empty( $f['dest_ics'] ) && '' !== (string) ( $f['ics_token'] ?? '' )
+				&& hash_equals( (string) $f['ics_token'], $token ) ) {
+				return $f;
+			}
+		}
+		return null;
+	}
+
+	/** Public subscribe URL for a feed's passthrough .ics ('' if not enabled). */
+	public static function ics_subscribe_url( array $feed ): string {
+		if ( empty( $feed['dest_ics'] ) || empty( $feed['ics_token'] ) ) {
+			return '';
+		}
+		return home_url( '/?gasf_feed_ics=' . rawurlencode( (string) $feed['ics_token'] ) );
+	}
+
 	public static function soonest_expiry_days(): ?int {
 		$soonest = null;
 		foreach ( self::feeds() as $f ) {
@@ -111,11 +170,7 @@ final class Feeds {
 			// only filtered-in events ever carry this feed id.
 			$filter = trim( (string) ( $feed['filter'] ?? '' ) );
 			if ( '' !== $filter ) {
-				$needle          = mb_strtolower( $filter );
-				$fetch['events'] = array_values( array_filter(
-					$fetch['events'],
-					static fn( $ev ) => false !== mb_strpos( mb_strtolower( (string) ( $ev['title'] ?? '' ) ), $needle )
-				) );
+				$fetch['events']  = self::apply_filter( $feed, $fetch['events'] );
 				$fstat['filter']  = $filter;
 				$fstat['fetched'] = count( $fetch['events'] );
 			}
