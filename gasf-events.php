@@ -3,13 +3,14 @@
  * Plugin Name:       GASF Events
  * Plugin URI:        https://github.com/flinchbot/GASF-Events
  * Description:       Lean, native events for the German American Society — replaces Modern Events Calendar. Owns event data, display, Facebook import, Eventbrite/Google syndication, and public feeds.
- * Version:           0.2.2
+ * Version:           0.3.0
  * Requires at least: 6.0
  * Requires PHP:      8.0
  * Author:            flinchbot
  * License:           GPL-2.0-or-later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain:       gasf-events
+ * Update URI:        https://github.com/flinchbot/GASF-Events
  *
  * @package GASF_Events
  *
@@ -22,7 +23,7 @@ namespace GASF_Events;
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'GASF_EVENTS_VERSION', '0.2.2' );
+define( 'GASF_EVENTS_VERSION', '0.3.0' );
 define( 'GASF_EVENTS_FILE', __FILE__ );
 define( 'GASF_EVENTS_DIR', plugin_dir_path( __FILE__ ) );
 define( 'GASF_EVENTS_URL', plugin_dir_url( __FILE__ ) );
@@ -42,6 +43,8 @@ if ( ! defined( 'GASF_EVENTS_REWRITE_SLUG' ) ) {
 }
 
 require_once GASF_EVENTS_DIR . 'includes/class-plugin.php';
+require_once GASF_EVENTS_DIR . 'includes/class-updater.php';
+( new Updater( __FILE__ ) )->register_hooks();
 
 register_activation_hook( __FILE__, [ Plugin::class, 'activate' ] );
 register_deactivation_hook( __FILE__, [ Plugin::class, 'deactivate' ] );

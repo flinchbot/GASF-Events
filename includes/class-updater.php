@@ -1,0 +1,87 @@
+<?php
+/**
+ * GitHub-based plugin updates (WP 5.8+ `Update URI` mechanism).
+ *
+ * The repo is public, so no credentials are needed: we read the Version header
+ * from the raw main branch and offer GitHub's branch zipball as the package.
+ * WordPress's normal update + auto-update UI then works on any install that
+ * runs this as a regular plugin. Version discipline: bump the Version header
+ * in gasf-events.php or installs will never see the new code.
+ *
+ * @package GASF_Events
+ */
+
+namespace GASF_Events;
+
+defined( 'ABSPATH' ) || exit;
+
+final class Updater {
+
+	const REPO      = 'flinchbot/GASF-Events';
+	const RAW_MAIN  = 'https://raw.githubusercontent.com/flinchbot/GASF-Events/main/gasf-events.php';
+	const PACKAGE   = 'https://github.com/flinchbot/GASF-Events/archive/refs/heads/main.zip';
+	const CACHE_KEY = 'gasf_events_update_check';
+
+	private string $file; // absolute path to gasf-events.php
+
+	public function __construct( string $file ) {
+		$this->file = $file;
+	}
+
+	public function register_hooks(): void {
+		add_filter( 'update_plugins_github.com', [ $this, 'check' ], 10, 3 );
+		add_filter( 'upgrader_source_selection', [ $this, 'fix_folder' ], 10, 4 );
+	}
+
+	/** Feed WP's update system when it asks about plugins with a github.com Update URI. */
+	public function check( $update, array $plugin_data, string $plugin_file ) {
+		if ( plugin_basename( $this->file ) !== $plugin_file ) {
+			return $update;
+		}
+		$remote = $this->remote_version();
+		if ( ! $remote || version_compare( $remote, (string) $plugin_data['Version'], '<=' ) ) {
+			return $update; // up to date (or check failed — never downgrade/loop)
+		}
+		return [
+			'id'      => 'https://github.com/' . self::REPO,
+			'slug'    => dirname( $plugin_file ),
+			'plugin'  => $plugin_file,
+			'version' => $remote,
+			'url'     => 'https://github.com/' . self::REPO,
+			'package' => self::PACKAGE,
+		];
+	}
+
+	/** Latest Version: header on the main branch (cached 6 h). */
+	private function remote_version(): string {
+		$cached = get_transient( self::CACHE_KEY );
+		if ( is_string( $cached ) && '' !== $cached ) {
+			return $cached;
+		}
+		$resp = wp_remote_get( self::RAW_MAIN, [ 'timeout' => 15 ] );
+		$ver  = '';
+		if ( ! is_wp_error( $resp ) && 200 === (int) wp_remote_retrieve_response_code( $resp ) ) {
+			if ( preg_match( '/^\s*\*?\s*Version:\s*([0-9][0-9a-z.\-]*)/mi', (string) wp_remote_retrieve_body( $resp ), $m ) ) {
+				$ver = trim( $m[1] );
+			}
+		}
+		set_transient( self::CACHE_KEY, $ver, 6 * HOUR_IN_SECONDS );
+		return $ver;
+	}
+
+	/** GitHub zipballs extract as GASF-Events-main/ — rename to the installed folder. */
+	public function fix_folder( $source, $remote_source, $upgrader, $hook_extra ) {
+		if ( is_wp_error( $source ) || empty( $hook_extra['plugin'] ) || plugin_basename( $this->file ) !== $hook_extra['plugin'] ) {
+			return $source;
+		}
+		global $wp_filesystem;
+		$want = trailingslashit( $remote_source ) . dirname( plugin_basename( $this->file ) ) . '/';
+		if ( untrailingslashit( $source ) === untrailingslashit( $want ) ) {
+			return $source;
+		}
+		if ( $wp_filesystem && $wp_filesystem->move( $source, $want ) ) {
+			return $want;
+		}
+		return $source;
+	}
+}
