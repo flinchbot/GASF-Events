@@ -54,6 +54,7 @@ final class Plugin {
 		require_once $dir . 'class-google-calendar.php';
 		require_once $dir . 'class-feeds.php';
 		require_once $dir . 'class-syndication.php';  // interface + registry (before destinations)
+		require_once $dir . 'class-image-uploader.php';
 		require_once $dir . 'class-eventbrite.php';
 		require_once $dir . 'class-stats.php';
 		require_once $dir . 'class-rest.php';

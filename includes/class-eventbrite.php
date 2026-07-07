@@ -4,8 +4,10 @@
  * Publishes any GASF event (regardless of its source) to Eventbrite and keeps
  * the listing in sync. Gated by its own enable flag + a private token.
  *
- * v1 maps name + start/end (UTC) + a free ticket and publishes. Rich
- * description (structured content) and venue creation are follow-ons.
+ * v1 maps name + start/end (UTC) + a free ticket and publishes; v1.1 adds
+ * the event's featured image as the Eventbrite logo on every push (create
+ * and update) via Image_Uploader. Rich description (structured content)
+ * and venue creation are follow-ons.
  *
  * @package GASF_Events
  */
@@ -75,6 +77,16 @@ final class Eventbrite_Destination implements Publish_Destination {
 		$now  = time();
 		$body = $this->build_body( $event );
 		$id   = (string) ( $state['id'] ?? '' );
+
+		// Image (best-effort; upload failure shouldn't block the rest of the push).
+		$thumbnail_id = get_post_thumbnail_id( $event->id() );
+		if ( $thumbnail_id ) {
+			$cfg     = Eventbrite::config();
+			$logo_id = ( new Image_Uploader( (string) $cfg['token'] ) )->upload_from_attachment( (int) $thumbnail_id );
+			if ( $logo_id ) {
+				$body['event']['logo_id'] = $logo_id;
+			}
+		}
 
 		if ( $id ) {
 			$res = Eventbrite::api( 'POST', "/events/{$id}/", $body );
