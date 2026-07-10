@@ -82,6 +82,7 @@ $render_chip = static function ( Event $e ) {
 					}
 					?>
 					<div class="<?php echo esc_attr( $classes ); ?>" role="cell">
+						<span class="gasf-day__dow" aria-hidden="true"><?php echo esc_html( $weekdays[ (int) $cell['date']->format( 'w' ) ] ); ?></span>
 						<span class="gasf-day__num"><?php echo esc_html( $cell['date']->format( 'j' ) ); ?></span>
 						<?php if ( $cell_events ) : ?>
 							<ul class="gasf-day__events">

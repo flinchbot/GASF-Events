@@ -55,6 +55,7 @@
 .gasf-c5{--d-color:#5f7d2f} .gasf-c6{--d-color:#1a3d7c} .gasf-c7{--d-color:#800000} .gasf-c8{--d-color:#455a78}
 /* Date-number badge: a soft highlight in the tile's color (today is the strong gold version below). */
 .gasf-day__num { display:inline-flex; align-items:center; justify-content:center; min-width:1.7em; height:1.7em; padding:0 .4em; border-radius:999px; font-weight:700; font-size:.85rem; color:var(--d-color); background:#eef0ec; background:color-mix(in srgb, var(--d-color) 15%, #fff); }
+.gasf-day__dow { display:none; } /* weekday label — only shown in the mobile agenda view */
 @supports ( color: color-mix(in srgb, red, blue) ) { .gasf-day__num { color:color-mix(in srgb, var(--d-color) 82%, #1a1a1a); } }
 .gasf-day:hover .gasf-day__num { background:color-mix(in srgb, var(--d-color) 22%, #fff); }
 /* Today: strongest — filled gold circle + gold ring, so it still leads the eye. */
@@ -92,9 +93,33 @@
 .gasf-pop.is-above .gasf-pop__caret { top:auto; bottom:-7px; border:1px solid var(--gasf-border); border-left:0; border-top:0; }
 
 @media (max-width:640px) {
-	.gasf-day { min-height:64px; }
-	.gasf-chip { font-size:.62rem; }
 	.gasf-cal__title { font-size:1.2rem; }
+
+	/* Portrait phones: a 7-col grid is unreadable at this width, so present the
+	   month as a vertical agenda — one row per day that has events. Desktop and
+	   tablets keep the grid (they're above this breakpoint). */
+	.gasf-cal .gasf-grid__head { display:none; }
+	.gasf-cal .gasf-grid__week { display:block; margin:0; }
+	.gasf-cal .gasf-day.is-out { display:none; }
+
+	.gasf-cal .gasf-day {
+		display:grid; grid-template-columns:3.3rem 1fr; grid-template-rows:auto auto;
+		column-gap:12px; min-height:0; margin:0 0 8px; padding:9px 11px; border-left-width:4px;
+	}
+	.gasf-cal .gasf-day:hover { transform:none; box-shadow:none; }
+	.gasf-cal .gasf-day__dow { display:block; grid-column:1; grid-row:1; font-size:.6rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em; opacity:.7; margin-bottom:2px; }
+	.gasf-cal .gasf-day__num { grid-column:1; grid-row:2; justify-self:start; width:auto; min-width:1.9em; height:1.9em; font-size:1rem; }
+	.gasf-cal ul.gasf-day__events { grid-column:2; grid-row:1 / span 2; align-self:center; margin:0; gap:6px; }
+	.gasf-cal .gasf-chip { font-size:.9rem; line-height:1.3; padding:8px 10px; align-items:center; }
+	.gasf-cal .gasf-chip__icon { font-size:1.05em; }
+
+	/* Where :has() is supported: drop empty days for a clean schedule and show a
+	   note if the whole month is empty. Without :has(), every day just lists —
+	   still far better than the cramped grid. */
+	@supports selector(:has(*)) {
+		.gasf-cal .gasf-day:not(:has(.gasf-day__events)) { display:none; }
+		.gasf-cal .gasf-grid:not(:has(.gasf-day__events))::after { content:"No events scheduled this month."; display:block; padding:18px 4px; color:var(--gasf-muted); font-style:italic; }
+	}
 }
 
 /* ---- Upcoming list ---- */
