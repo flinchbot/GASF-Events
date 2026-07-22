@@ -67,7 +67,7 @@ final class Alerts {
 		$site  = wp_parse_url( home_url(), PHP_URL_HOST );
 		$lines = [];
 		foreach ( $drafted as $d ) {
-			$feed    = $labels[ $d['feed_id'] ] ?: $d['feed_id'];
+			$feed    = ( $labels[ $d['feed_id'] ] ?? '' ) ?: $d['feed_id'];
 			$lines[] = sprintf( "- %s\n  When: %s\n  Feed: %s\n  Edit: %s", $d['title'], $d['start'], $feed, $d['edit'] );
 		}
 
