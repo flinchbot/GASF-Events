@@ -175,6 +175,7 @@ final class Event_Ingest {
 			if ( $misses >= 2 ) {
 				$drafted++;
 				if ( ! $dry ) {
+					Alerts::note_drafted( $id, $feed_id );
 					wp_update_post( [ 'ID' => $id, 'post_status' => 'draft' ] );
 				}
 			} elseif ( ! $dry ) {

@@ -93,6 +93,10 @@ final class Settings {
 			'type'              => 'integer',
 			'sanitize_callback' => 'absint',
 		] );
+		register_setting( 'gasf_events_settings', Alerts::OPT_EMAIL, [
+			'type'              => 'string',
+			'sanitize_callback' => 'sanitize_email',
+		] );
 	}
 
 	public function sanitize_venue( $input ): array {
@@ -122,10 +126,11 @@ final class Settings {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
-		$venue     = self::venue();
-		$organizer = self::organizer();
-		$img_id    = self::default_image_id();
-		$img_url   = $img_id ? wp_get_attachment_image_url( $img_id, 'medium' ) : '';
+		$venue       = self::venue();
+		$organizer   = self::organizer();
+		$img_id      = self::default_image_id();
+		$img_url     = $img_id ? wp_get_attachment_image_url( $img_id, 'medium' ) : '';
+		$alert_email = Alerts::email();
 		require GASF_EVENTS_DIR . 'admin/views/settings.php';
 	}
 }

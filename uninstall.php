@@ -16,6 +16,7 @@ defined( 'WP_UNINSTALL_PLUGIN' ) || exit;
 delete_option( 'gasf_events_venue' );
 delete_option( 'gasf_events_organizer' );
 delete_option( 'gasf_events_default_image' );
+delete_option( 'gasf_events_alert_email' );
 
 // Credentials & integration config — remove on uninstall (these are not club
 // content, unlike the event posts/meta, which are deliberately preserved).

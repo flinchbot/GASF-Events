@@ -185,6 +185,7 @@ A lightweight, self-contained page-view counter — no third-party analytics req
 The FB source-of-truth refresh (§6) is the one thing that could overwrite a maintainer's work, so the boundary is explicit:
 - The importer **only ever reads/writes events where `_gasf_source = facebook`** (identified by `_gasf_fb_event_id`). Manual events are invisible to it — never updated, never auto-drafted.
 - **Deletion semantics:** manual events delete via WP Trash like any post. FB events that vanish from Facebook auto-draft (not trash → avoids the old trash-limbo dedup bug); a maintainer can then permanently delete or keep them.
+- **Auto-draft alert (v0.14.0):** every sync run that auto-drafts anything sends ONE summary email to the address in Events → Settings → "Alert email" (`gasf_events_alert_email`; blank = off), listing each event with its edit link and the republish + sync-lock recovery steps. Added after the 2026-07-22 incident where FB's Graph API silently dropped a single *valid* occurrence of a recurring event (while facebook.com still showed it), and the auto-draft rule hid a live event with no trace — API absence is not proof of source deletion, so a human gets told every time.
 
 #### Pinning an FB event (the override) — whole-event for v1
 Today Module H always wins: it rewrites title/description/date/time/cover on every hourly sync, so any maintainer correction snaps back within the hour. The pin lets the club override Facebook. **v1 = whole-event pin:**

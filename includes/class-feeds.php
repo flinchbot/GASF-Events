@@ -226,6 +226,9 @@ final class Feeds {
 			update_option( self::OPT_LAST_RUN, $stats, false );
 			Meta::release_lock( 'feeds' );
 			self::log( $stats );
+			// One summary email per run for anything prune_missing() unpublished
+			// (see class-alerts.php — silent auto-drafts hid a live event once).
+			Alerts::flush();
 		}
 		return $stats;
 	}

@@ -7,6 +7,7 @@
  * @var array  $organizer
  * @var int    $img_id
  * @var string $img_url
+ * @var string $alert_email
  */
 
 namespace GASF_Events;
@@ -55,6 +56,13 @@ defined( 'ABSPATH' ) || exit;
 					<button type="button" class="button" id="gasf_default_img_pick"><?php esc_html_e( 'Choose image', 'gasf-events' ); ?></button>
 					<button type="button" class="button" id="gasf_default_img_clear"><?php esc_html_e( 'Clear', 'gasf-events' ); ?></button>
 				</td></tr>
+		</table>
+
+		<h2><?php esc_html_e( 'Sync alerts', 'gasf-events' ); ?></h2>
+		<p class="description"><?php esc_html_e( 'When the feed sync auto-unpublishes an event (missing from its source feed for 2 consecutive runs), send a summary email to this address. Leave blank to disable.', 'gasf-events' ); ?></p>
+		<table class="form-table" role="presentation">
+			<tr><th><label for="gasf_alert_email"><?php esc_html_e( 'Alert email', 'gasf-events' ); ?></label></th>
+				<td><input type="email" class="regular-text" id="gasf_alert_email" name="<?php echo esc_attr( Alerts::OPT_EMAIL ); ?>" value="<?php echo esc_attr( $alert_email ); ?>" placeholder="alerts@example.com"></td></tr>
 		</table>
 
 		<?php submit_button(); ?>
