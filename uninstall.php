@@ -17,6 +17,11 @@ delete_option( 'gasf_events_venue' );
 delete_option( 'gasf_events_organizer' );
 delete_option( 'gasf_events_default_image' );
 delete_option( 'gasf_events_alert_email' );
+delete_option( 'gasf_events_heroes_enabled' );
+// NOTE: the scheduled-hero data (gasf_hero_entries / gasf_hero_recurring /
+// gasf_hero_seeded / gasf_hero_lookahead_days) is club content, like the event
+// posts — deliberately NOT deleted here, so an accidental uninstall doesn't wipe
+// a maintainer's queued home-page banners.
 
 // Credentials & integration config — remove on uninstall (these are not club
 // content, unlike the event posts/meta, which are deliberately preserved).

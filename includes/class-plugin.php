@@ -45,6 +45,11 @@ final class Plugin {
 		require_once $dir . 'class-schema.php';
 		require_once $dir . 'class-shortcodes.php';
 		require_once $dir . 'class-welton.php';
+		// Home-page heroes (moved from GASF-Utilities). Procedural, self-registering
+		// on include; heroes.php MUST precede recurring-heroes.php (shared helpers).
+		// Requires class-settings.php (loaded above) for the enable gate.
+		require_once $dir . 'heroes.php';
+		require_once $dir . 'recurring-heroes.php';
 		require_once $dir . 'class-single.php';
 		require_once $dir . 'class-print.php';
 		require_once $dir . 'class-fb-client.php';
@@ -126,6 +131,7 @@ final class Plugin {
 	public static function deactivate(): void {
 		wp_clear_scheduled_hook( 'gasf_events_sync' );
 		wp_clear_scheduled_hook( 'gasf_events_drain' );
+		wp_clear_scheduled_hook( 'gasf_hero_recurring_cron' ); // owned by recurring-heroes.php
 		flush_rewrite_rules();
 	}
 }

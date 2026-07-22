@@ -19,6 +19,21 @@ defined( 'ABSPATH' ) || exit;
 	<form method="post" action="options.php">
 		<?php settings_fields( 'gasf_events_settings' ); ?>
 
+		<h2><?php esc_html_e( 'Home page', 'gasf-events' ); ?></h2>
+		<table class="form-table" role="presentation">
+			<tr><th><?php esc_html_e( 'Heroes', 'gasf-events' ); ?></th>
+				<td>
+					<label><input type="checkbox" name="<?php echo esc_attr( Settings::OPT_HEROES ); ?>" value="1" <?php checked( Settings::heroes_enabled() ); ?>> <?php esc_html_e( 'Enable the home-page hero banner', 'gasf-events' ); ?></label>
+					<p class="description"><?php
+						printf(
+							/* translators: %s: [gas_hero] shortcode */
+							esc_html__( 'Powers the %s banner and the two admin screens (Events → Heroes, Events → Recurring Heroes). Turn off to remove the banner and hide those screens.', 'gasf-events' ),
+							'<code>[gas_hero]</code>'
+						);
+					?></p>
+				</td></tr>
+		</table>
+
 		<h2><?php esc_html_e( 'Venue', 'gasf-events' ); ?></h2>
 		<p class="description"><?php esc_html_e( 'The default location for events. Used on event pages and in structured data.', 'gasf-events' ); ?></p>
 		<table class="form-table" role="presentation">

@@ -16,10 +16,32 @@ final class Settings {
 	const OPT_VENUE      = 'gasf_events_venue';
 	const OPT_ORGANIZER  = 'gasf_events_organizer';
 	const OPT_DEFAULT_IMG = 'gasf_events_default_image';
+	const OPT_HEROES     = 'gasf_events_heroes_enabled';
+
+	/**
+	 * Whether the home-page Heroes feature (heroes.php + recurring-heroes.php) runs.
+	 * First read migrates from GASF-Utilities' legacy gate `gasf_mec_enable_hero`,
+	 * so moving the feature between plugins changes nothing on a live site. Once
+	 * saved from the Settings form, the Events option is authoritative.
+	 */
+	public static function heroes_enabled(): bool {
+		$v = get_option( self::OPT_HEROES, null );
+		if ( null === $v ) {
+			$v = get_option( 'gasf_mec_enable_hero', '0' ); // inherit legacy Utilities gate
+		}
+		return (bool) (int) $v;
+	}
 
 	public function register_hooks(): void {
 		add_action( 'admin_menu', [ $this, 'add_settings_page' ] );
 		add_action( 'admin_init', [ $this, 'register_settings' ] );
+		// Turning Heroes off should stop its recurring cache-purge cron
+		// (recurring-heroes.php only ever schedules it while enabled).
+		add_action( 'update_option_' . self::OPT_HEROES, static function ( $old, $new ) {
+			if ( ! (int) $new && wp_next_scheduled( 'gasf_hero_recurring_cron' ) ) {
+				wp_clear_scheduled_hook( 'gasf_hero_recurring_cron' );
+			}
+		}, 10, 2 );
 	}
 
 	public static function venue(): array {
@@ -96,6 +118,11 @@ final class Settings {
 		register_setting( 'gasf_events_settings', Alerts::OPT_EMAIL, [
 			'type'              => 'string',
 			'sanitize_callback' => 'sanitize_email',
+		] );
+		register_setting( 'gasf_events_settings', self::OPT_HEROES, [
+			'type'              => 'boolean',
+			// Unchecked box submits nothing → store '0'; checked → '1'.
+			'sanitize_callback' => static fn( $v ) => ! empty( $v ) ? '1' : '0',
 		] );
 	}
 
