@@ -544,13 +544,16 @@ if ( ! function_exists( 'gasf_hero_active' ) && \GASF_Events\Settings::heroes_en
 				<thead><tr><th>Image</th><th>Goes live</th><th>Event end</th><th>Status</th><th>Links / caption</th><th></th></tr></thead>
 				<tbody>
 				<?php
-				// Recurring heroes shown here as read-only rows (they're auto-scheduled
-				// from the Recurring Heroes rules), each with an Edit button that jumps
-				// straight to its rule. Two can appear:
-				//   1. The one LIVE NOW (if a recurring hero is currently active) — so it
-				//      never "disappears" from the schedule while it's the hero on the page.
-				//   2. The NEXT recurring to fire after the furthest-out manual hero (a
-				//      projection; schedule a manual hero past it and it recomputes).
+				// Build ALL rows (recurring + manual) with their go-live timestamp,
+				// then sort newest → oldest so the schedule reads top-to-bottom by
+				// "Goes live" regardless of row type. Recurring rows are read-only
+				// projections from the Recurring Heroes rules:
+				//   • LIVE NOW — the recurring hero currently on the page (if any), so
+				//     it never disappears from the schedule while it's active.
+				//   • next recurring — the one that takes over after the furthest-out
+				//     manual hero (a projection that recomputes as you add manuals).
+				$rows = array(); // each: [ ts => int (go-live), html => string ]
+
 				$active_rec = function_exists( 'gasf_hero_recurring_active' ) ? gasf_hero_recurring_active() : null;
 				$next_rec   = null;
 				if ( function_exists( 'gasf_hero_recurring_next_after' ) ) {
@@ -563,24 +566,18 @@ if ( ! function_exists( 'gasf_hero_active' ) && \GASF_Events\Settings::heroes_en
 					$rst  = '<strong style="color:#1a7f37">&#9679; LIVE NOW</strong>'
 						. ( $rexp > $now ? '<br><small style="color:#666">ends ' . esc_html( wp_date( 'M j, g:i a', $rexp ) ) . '</small>' : '' )
 						. '<br><small style="color:#6d28d9">&#8635; recurring</small>';
-					echo gasf_hero_recurring_row_html( $active_rec, $rst ); // phpcs:ignore
+					$rows[] = array( 'ts' => (int) $active_rec['activate_at'], 'html' => gasf_hero_recurring_row_html( $active_rec, $rst ) );
 				}
 				// Skip the projection if it's the same occurrence already shown as LIVE NOW.
 				if ( $next_rec && ( ! $active_rec || (int) ( $next_rec['event_id'] ?? 0 ) !== (int) ( $active_rec['event_id'] ?? 0 ) ) ) {
-					echo gasf_hero_recurring_row_html( $next_rec, '<span style="color:#6d28d9" title="Fires automatically from the Recurring Heroes rule">&#8635; next recurring</span>' ); // phpcs:ignore
+					$rows[] = array( 'ts' => (int) $next_rec['activate_at'], 'html' => gasf_hero_recurring_row_html( $next_rec, '<span style="color:#6d28d9" title="Fires automatically from the Recurring Heroes rule">&#8635; next recurring</span>' ) );
 				}
-				?>
-				<?php if ( ! $entries ) : ?>
-					<tr><td colspan="6">No manually-scheduled heroes yet.</td></tr>
-				<?php
-				else :
-					$display = $entries;
-					usort( $display, function ( $a, $b ) { return (int) $b['activate_at'] <=> (int) $a['activate_at']; } );
-					foreach ( $display as $e ) :
+
+				foreach ( $entries as $e ) {
 					$ts  = (int) $e['activate_at'];
 					$exp = gasf_hero_entry_expires( $e );
 					if ( $e['id'] === $active_id ) {
-						$status = '<strong style="color:#1a7f37">● LIVE NOW</strong>'
+						$status = '<strong style="color:#1a7f37">&#9679; LIVE NOW</strong>'
 							. ( $exp > $now ? '<br><small style="color:#666">ends ' . esc_html( wp_date( 'M j, g:i a', $exp ) ) . '</small>' : '' );
 					} elseif ( $exp > 0 && $exp <= $now ) {
 						$status = '<span style="color:#b45309" title="Linked event has ended — this hero retired automatically">ended</span>';
@@ -589,9 +586,10 @@ if ( ! function_exists( 'gasf_hero_active' ) && \GASF_Events\Settings::heroes_en
 					} else {
 						$status = '<span style="color:#888">past</span>';
 					}
-					$thumb  = wp_get_attachment_image( (int) $e['image_id'], array( 90, 90 ) );
+					$thumb   = wp_get_attachment_image( (int) $e['image_id'], array( 90, 90 ) );
 					$img_url = isset( $e['image_url'] ) ? $e['image_url'] : '';
-				?>
+					ob_start();
+					?>
 					<tr>
 						<td><?php echo $thumb ? $thumb : '#' . (int) $e['image_id']; // phpcs:ignore ?></td>
 						<td><?php echo esc_html( wp_date( 'M j, Y g:i a', $ts ) ); ?></td>
@@ -626,7 +624,19 @@ if ( ! function_exists( 'gasf_hero_active' ) && \GASF_Events\Settings::heroes_en
 							</form>
 						</td>
 					</tr>
-				<?php endforeach; endif; ?>
+					<?php
+					$rows[] = array( 'ts' => $ts, 'html' => ob_get_clean() );
+				}
+
+				// Newest → oldest by go-live time, across recurring + manual alike.
+				usort( $rows, function ( $a, $b ) { return (int) $b['ts'] <=> (int) $a['ts']; } );
+
+				if ( ! $rows ) {
+					echo '<tr><td colspan="6">No heroes scheduled yet.</td></tr>';
+				} else {
+					foreach ( $rows as $r ) { echo $r['html']; } // phpcs:ignore
+				}
+				?>
 				</tbody>
 			</table>
 			<p class="description" style="margin-top:6px">Rows with <span style="color:#6d28d9">&#8635;</span> come from the <strong>Recurring Heroes</strong> rules: a <strong style="color:#1a7f37">&#9679; LIVE NOW &#8635; recurring</strong> row shows while one is the active hero, and the <span style="color:#6d28d9">&#8635; next recurring</span> row previews the one that takes over after your last hand-scheduled hero. Their <em>Edit</em> button jumps straight to that rule.</p>
