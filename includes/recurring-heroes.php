@@ -136,6 +136,10 @@ if ( ! function_exists( 'gasf_hero_recurring_active' ) && function_exists( 'gasf
 			'event_id'     => (int) $ev->id,
 			'_recurring'   => true,
 			'_expire_at'   => (int) $ev->end_ts,
+			// Provenance for the Heroes schedule: the rule's title (for display)
+			// and its def id (so an Edit button can deep-link to that rule).
+			'_title'       => (string) ( $def['title'] ?? '' ),
+			'_def_id'      => (string) ( $def['id'] ?? '' ),
 		);
 	}
 
@@ -463,6 +467,12 @@ if ( ! function_exists( 'gasf_hero_recurring_active' ) && function_exists( 'gasf
 				$('#gasf_rhero_submit').text('Save recurring hero');
 				$(this).hide();
 			});
+			// Deep-link from the Heroes schedule: ?edit=<def id> opens that rule's editor.
+			var rheroEditId = new URLSearchParams(window.location.search).get('edit');
+			if ( rheroEditId ) {
+				var $btn = $('.gasf-rhero-edit[data-id="' + rheroEditId.replace(/"/g,'') + '"]');
+				if ( $btn.length ) { $btn.first().trigger('click'); }
+			}
 		});
 		</script>
 		<?php

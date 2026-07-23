@@ -268,6 +268,35 @@ if ( ! function_exists( 'gasf_hero_active' ) && \GASF_Events\Settings::heroes_en
 			. ' <abbr title="No recorded end time" style="text-decoration:none;color:#b3122b;font-weight:700">*</abbr>';
 	}
 
+	/**
+	 * Render one recurring-hero row for the "Scheduled heroes" table. Shared by
+	 * the LIVE-NOW recurring row and the next-recurring projection so both look
+	 * the same and both get an Edit button that deep-links to the specific rule
+	 * on the Recurring Heroes page (?edit=<def id>).
+	 */
+	function gasf_hero_recurring_row_html( $rec, $status_html ) {
+		$thumb  = wp_get_attachment_image( (int) $rec['image_id'], array( 90, 90 ) );
+		$def_id = (string) ( $rec['_def_id'] ?? '' );
+		$page   = 'edit.php?post_type=' . ( defined( 'GASF_EVENTS_CPT' ) ? GASF_EVENTS_CPT : 'gasf_event' ) . '&page=gasf-events-recurring-heroes';
+		$edit   = admin_url( $page . ( '' !== $def_id ? '&edit=' . rawurlencode( $def_id ) : '' ) );
+		ob_start();
+		?>
+		<tr style="background:#f6f3fb">
+			<td><?php echo $thumb ? $thumb : '#' . (int) $rec['image_id']; // phpcs:ignore ?></td>
+			<td><?php echo esc_html( wp_date( 'M j, Y g:i a', (int) $rec['activate_at'] ) ); ?></td>
+			<td><?php echo gasf_hero_event_end_label( isset( $rec['event_id'] ) ? (int) $rec['event_id'] : 0 ); // phpcs:ignore ?></td>
+			<td><?php echo $status_html; // phpcs:ignore ?></td>
+			<td>
+				<strong><?php echo esc_html( $rec['_title'] ?? '' ); ?></strong><br>
+				<?php echo ( isset( $rec['caption'] ) && '' !== $rec['caption'] ) ? esc_html( wp_trim_words( wp_strip_all_tags( $rec['caption'] ), 12 ) ) . '<br>' : ''; // phpcs:ignore ?>
+				<small style="color:#666">Auto-scheduled from the Recurring Heroes rule.</small>
+			</td>
+			<td style="white-space:nowrap"><a class="button" href="<?php echo esc_url( $edit ); ?>">Edit</a></td>
+		</tr>
+		<?php
+		return ob_get_clean();
+	}
+
 	/* ---------- admin screen ---------- */
 	add_action( 'admin_menu', function () {
 		$parent = 'edit.php?post_type=' . ( defined( 'GASF_EVENTS_CPT' ) ? GASF_EVENTS_CPT : 'gasf_event' );
@@ -515,33 +544,32 @@ if ( ! function_exists( 'gasf_hero_active' ) && \GASF_Events\Settings::heroes_en
 				<thead><tr><th>Image</th><th>Goes live</th><th>Event end</th><th>Status</th><th>Links / caption</th><th></th></tr></thead>
 				<tbody>
 				<?php
-				// Project the next recurring hero that fires AFTER the furthest-out manual
-				// hero. Anchor on the latest manual go-live (or now, whichever is later);
-				// schedule a manual hero past this row and it recomputes to the following
-				// recurring occurrence. It's the furthest-future item, so it renders at the
-				// TOP of this newest-first list — above the last manual hero.
-				$rec = null;
+				// Recurring heroes shown here as read-only rows (they're auto-scheduled
+				// from the Recurring Heroes rules), each with an Edit button that jumps
+				// straight to its rule. Two can appear:
+				//   1. The one LIVE NOW (if a recurring hero is currently active) — so it
+				//      never "disappears" from the schedule while it's the hero on the page.
+				//   2. The NEXT recurring to fire after the furthest-out manual hero (a
+				//      projection; schedule a manual hero past it and it recomputes).
+				$active_rec = function_exists( 'gasf_hero_recurring_active' ) ? gasf_hero_recurring_active() : null;
+				$next_rec   = null;
 				if ( function_exists( 'gasf_hero_recurring_next_after' ) ) {
 					$anchor = $now;
 					foreach ( $entries as $e ) { $anchor = max( $anchor, (int) $e['activate_at'] ); }
-					$rec = gasf_hero_recurring_next_after( $anchor );
+					$next_rec = gasf_hero_recurring_next_after( $anchor );
 				}
-				if ( $rec ) :
-					$rthumb = wp_get_attachment_image( (int) $rec['image_id'], array( 90, 90 ) );
+				if ( $active_rec ) {
+					$rexp = isset( $active_rec['_expire_at'] ) ? (int) $active_rec['_expire_at'] : 0;
+					$rst  = '<strong style="color:#1a7f37">&#9679; LIVE NOW</strong>'
+						. ( $rexp > $now ? '<br><small style="color:#666">ends ' . esc_html( wp_date( 'M j, g:i a', $rexp ) ) . '</small>' : '' )
+						. '<br><small style="color:#6d28d9">&#8635; recurring</small>';
+					echo gasf_hero_recurring_row_html( $active_rec, $rst ); // phpcs:ignore
+				}
+				// Skip the projection if it's the same occurrence already shown as LIVE NOW.
+				if ( $next_rec && ( ! $active_rec || (int) ( $next_rec['event_id'] ?? 0 ) !== (int) ( $active_rec['event_id'] ?? 0 ) ) ) {
+					echo gasf_hero_recurring_row_html( $next_rec, '<span style="color:#6d28d9" title="Fires automatically from the Recurring Heroes rule">&#8635; next recurring</span>' ); // phpcs:ignore
+				}
 				?>
-					<tr style="background:#f6f3fb">
-						<td><?php echo $rthumb ? $rthumb : '#' . (int) $rec['image_id']; // phpcs:ignore ?></td>
-						<td><?php echo esc_html( wp_date( 'M j, Y g:i a', (int) $rec['activate_at'] ) ); ?></td>
-						<td><?php echo gasf_hero_event_end_label( isset( $rec['event_id'] ) ? (int) $rec['event_id'] : 0 ); // phpcs:ignore ?></td>
-						<td><span style="color:#6d28d9" title="Fires automatically from the Recurring Heroes rule">&#8635; next recurring</span></td>
-						<td>
-							<strong><?php echo esc_html( $rec['_title'] ?? '' ); ?></strong><br>
-							<?php echo $rec['caption'] !== '' ? esc_html( wp_trim_words( wp_strip_all_tags( $rec['caption'] ), 12 ) ) . '<br>' : ''; // phpcs:ignore ?>
-							<small style="color:#666">Auto-scheduled &mdash; edit on the <a href="<?php echo esc_url( admin_url( 'edit.php?post_type=' . ( defined( 'GASF_EVENTS_CPT' ) ? GASF_EVENTS_CPT : 'gasf_event' ) . '&page=gasf-events-recurring-heroes' ) ); ?>">Recurring Heroes</a> page.</small>
-						</td>
-						<td style="color:#999">&mdash;</td>
-					</tr>
-				<?php endif; ?>
 				<?php if ( ! $entries ) : ?>
 					<tr><td colspan="6">No manually-scheduled heroes yet.</td></tr>
 				<?php
@@ -601,7 +629,7 @@ if ( ! function_exists( 'gasf_hero_active' ) && \GASF_Events\Settings::heroes_en
 				<?php endforeach; endif; ?>
 				</tbody>
 			</table>
-			<p class="description" style="margin-top:6px">The <span style="color:#6d28d9">&#8635; next recurring</span> row is a preview of the recurring hero that takes over after your last hand-scheduled one &mdash; schedule a hero past it and this row jumps to the following recurrence.</p>
+			<p class="description" style="margin-top:6px">Rows with <span style="color:#6d28d9">&#8635;</span> come from the <strong>Recurring Heroes</strong> rules: a <strong style="color:#1a7f37">&#9679; LIVE NOW &#8635; recurring</strong> row shows while one is the active hero, and the <span style="color:#6d28d9">&#8635; next recurring</span> row previews the one that takes over after your last hand-scheduled hero. Their <em>Edit</em> button jumps straight to that rule.</p>
 		<script>
 		jQuery(function($){
 			$('#gasf_hero_pick').on('click', function(e){
