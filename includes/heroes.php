@@ -81,6 +81,54 @@ if ( ! function_exists( 'gasf_hero_active' ) && \GASF_Events\Settings::heroes_en
 		return ( $end <= $start ) ? $start + 2 * HOUR_IN_SECONDS : $end;
 	}
 
+	/* ---------- per-event-name field memory (pre-fill for repeat events) ----------
+	 * Saving a manual hero that's linked to an event remembers its optional
+	 * fields (caption, button label, button URL) under the event's normalized
+	 * name. The next time a similarly-named event appears in quick-create, the
+	 * tile pre-fills those fields (Dinner Night, World Cup watch parties, …).
+	 * The image link is deliberately NOT remembered — quick-create sets it to
+	 * the new occurrence's permalink, and an old permalink would be stale. */
+
+	/** Normalize an event title into a memory key: lowercase, subtitle after
+	 *  ":" / "–" / "—" dropped ("World Cup Watch Party: USA vs Wales" and
+	 *  "…: England vs France" share one memory), whitespace collapsed. */
+	function gasf_hero_memory_key( $title ) {
+		$t     = strtolower( trim( (string) $title ) );
+		$parts = preg_split( '/\s*[:\x{2013}\x{2014}]\s*/u', $t );
+		$t     = is_array( $parts ) && '' !== trim( (string) $parts[0] ) ? $parts[0] : $t;
+		return trim( preg_replace( '/\s+/', ' ', $t ) );
+	}
+	function gasf_hero_memory_all() {
+		$m = get_option( 'gasf_hero_field_memory', array() );
+		return is_array( $m ) ? $m : array();
+	}
+	/** Memory entry for an event title, or null. */
+	function gasf_hero_memory_for( $title ) {
+		$key = gasf_hero_memory_key( $title );
+		if ( '' === $key ) { return null; }
+		$m = gasf_hero_memory_all();
+		return isset( $m[ $key ] ) ? $m[ $key ] : null;
+	}
+	/** Store/refresh the memory from a just-saved hero (last save wins). */
+	function gasf_hero_memory_remember( $event_id, $data ) {
+		$title = $event_id ? get_the_title( (int) $event_id ) : '';
+		$key   = gasf_hero_memory_key( $title );
+		if ( '' === $key ) { return; }
+		$fields = array(
+			'caption'      => (string) ( $data['caption'] ?? '' ),
+			'button_label' => (string) ( $data['button_label'] ?? '' ),
+			'button_url'   => (string) ( $data['button_url'] ?? '' ),
+		);
+		if ( '' === trim( $fields['caption'] . $fields['button_label'] . $fields['button_url'] ) ) { return; }
+		$m         = gasf_hero_memory_all();
+		$m[ $key ] = $fields + array( 'title' => $title, 'ts' => time() );
+		if ( count( $m ) > 40 ) { // cap: keep the 40 most recently saved
+			uasort( $m, function ( $a, $b ) { return ( $b['ts'] ?? 0 ) <=> ( $a['ts'] ?? 0 ); } );
+			$m = array_slice( $m, 0, 40, true );
+		}
+		update_option( 'gasf_hero_field_memory', $m, false );
+	}
+
 	/* Active = latest entry whose activation has passed AND whose linked event
 	 * (if any) hasn't ended. Ended heroes fall away, so the next-newest
 	 * still-valid hero (or a recurring one) shows instead. */
@@ -236,14 +284,19 @@ if ( ! function_exists( 'gasf_hero_active' ) && \GASF_Events\Settings::heroes_en
 			$start_ts = (int) get_post_meta( $p->ID, '_gasf_start_ts', true );
 			if ( ! $start_ts ) { continue; }
 			$tid   = (int) get_post_thumbnail_id( $p->ID );
+			$mem   = gasf_hero_memory_for( get_the_title( $p->ID ) );
 			$out[] = array(
-				'id'       => $p->ID,
-				'title'    => get_the_title( $p->ID ),
-				'image_id' => $tid,
-				'thumb'    => $tid ? wp_get_attachment_image_url( $tid, 'medium' ) : '',
-				'url'      => get_permalink( $p->ID ),
-				'activate' => wp_date( 'Y-m-d\TH:i', $start_ts - 72 * HOUR_IN_SECONDS ),
-				'when'     => wp_date( 'D M j · g:i a', $start_ts ),
+				'id'               => $p->ID,
+				'title'            => get_the_title( $p->ID ),
+				'image_id'         => $tid,
+				'thumb'            => $tid ? wp_get_attachment_image_url( $tid, 'medium' ) : '',
+				'url'              => get_permalink( $p->ID ),
+				'activate'         => wp_date( 'Y-m-d\TH:i', $start_ts - 72 * HOUR_IN_SECONDS ),
+				'when'             => wp_date( 'D M j · g:i a', $start_ts ),
+				'mem_caption'      => (string) ( $mem['caption'] ?? '' ),
+				'mem_button_label' => (string) ( $mem['button_label'] ?? '' ),
+				'mem_button_url'   => (string) ( $mem['button_url'] ?? '' ),
+				'has_mem'          => (bool) $mem,
 			);
 		}
 		wp_reset_postdata();
@@ -353,6 +406,15 @@ if ( ! function_exists( 'gasf_hero_active' ) && \GASF_Events\Settings::heroes_en
 			echo '<div class="notice notice-success is-dismissible"><p>Quick-create list now shows the next ' . esc_html( $d ) . ' days.</p></div>';
 		}
 
+		/* forget one remembered-fields entry */
+		if ( isset( $_POST['gasf_hero_forget'] ) && check_admin_referer( 'gasf_hero_action' ) ) {
+			$k = sanitize_text_field( wp_unslash( $_POST['gasf_hero_forget'] ) );
+			$m = gasf_hero_memory_all();
+			unset( $m[ $k ] );
+			update_option( 'gasf_hero_field_memory', $m, false );
+			echo '<div class="notice notice-success is-dismissible"><p>Saved fields forgotten.</p></div>';
+		}
+
 		/* add / edit */
 		if ( isset( $_POST['gasf_hero_add'] ) && check_admin_referer( 'gasf_hero_action' ) ) {
 			$image_id    = (int) ( $_POST['gasf_hero_image_id'] ?? 0 );
@@ -377,6 +439,10 @@ if ( ! function_exists( 'gasf_hero_active' ) && \GASF_Events\Settings::heroes_en
 					'activate_at'  => $ts,
 					'event_id'     => (int) ( $_POST['gasf_hero_event_id'] ?? 0 ),
 				);
+
+				// Remember this event name's optional fields so the next similar
+				// event's quick-create tile pre-fills them.
+				gasf_hero_memory_remember( $sanitized_data['event_id'], $sanitized_data );
 
 				// Purge the home cache when this hero's linked event ends, so the
 				// fallback hero appears on time (activation purge is scheduled below).
@@ -435,6 +501,7 @@ if ( ! function_exists( 'gasf_hero_active' ) && \GASF_Events\Settings::heroes_en
 					),
 					'fields' => array(
 						'Quick-create tiles'      => 'One tile per upcoming calendar event. Clicking a tile pre-fills the whole form from that event (cover image, link, and a go-live time 72 hours before it starts) — you just review and press Schedule. The "next N days" box only controls how far ahead the tiles look.',
+						'&#8635; saved fields'    => 'When you schedule a hero linked to an event, its caption, button label and button link are remembered under that event\'s name. The next similar event (Dinner Night, a World Cup watch party…) pre-fills them on its quick-create tile — review before scheduling, since a date in the caption or an old ticket link may need updating. Manage/forget entries under "Remembered fields" below the tiles.',
 						'Image'                   => 'The banner itself, picked from the Media Library. Required — a hero is fundamentally an image. Landscape images around 1200px wide look best.',
 						'Image link (optional)'   => 'A URL that makes the entire image clickable — usually the event page or ticket link. Leave blank for a non-clickable banner.',
 						'Caption (optional)'      => 'Short text shown under the image (basic HTML/links allowed). Use it for a date/tagline the image itself doesn\'t carry.',
@@ -470,10 +537,14 @@ if ( ! function_exists( 'gasf_hero_active' ) && \GASF_Events\Settings::heroes_en
 						data-thumb="<?php echo esc_attr( $ev['thumb'] ); ?>"
 						data-url="<?php echo esc_attr( $ev['url'] ); ?>"
 						data-activate="<?php echo esc_attr( $ev['activate'] ); ?>"
-						data-event-id="<?php echo (int) $ev['id']; ?>">
+						data-event-id="<?php echo (int) $ev['id']; ?>"
+						data-caption="<?php echo esc_attr( $ev['mem_caption'] ); ?>"
+						data-button-label="<?php echo esc_attr( $ev['mem_button_label'] ); ?>"
+						data-button-url="<?php echo esc_attr( $ev['mem_button_url'] ); ?>">
 						<?php if ( $ev['thumb'] ) : ?><img src="<?php echo esc_url( $ev['thumb'] ); ?>" alt=""><?php endif; ?>
 						<span class="gasf-hero-up__t"><?php echo esc_html( $ev['title'] ); ?></span>
 						<span class="gasf-hero-up__d"><?php echo esc_html( $ev['when'] ); ?></span>
+						<?php if ( $ev['has_mem'] ) : ?><span class="gasf-hero-up__m" title="Pre-fills the caption/button saved from the last hero for this event">&#8635; saved fields</span><?php endif; ?>
 					</button>
 				<?php endforeach; ?>
 			</div>
@@ -484,9 +555,37 @@ if ( ! function_exists( 'gasf_hero_active' ) && \GASF_Events\Settings::heroes_en
 				.gasf-hero-up__item img{width:100%;height:90px;object-fit:cover;border-radius:4px;display:block}
 				.gasf-hero-up__t{font-weight:600;font-size:12px;line-height:1.25}
 				.gasf-hero-up__d{font-size:11px;color:#666}
+				.gasf-hero-up__m{font-size:10px;color:#6d28d9;font-weight:600}
 			</style>
 			<?php else : ?>
 			<p>No events in the next <?php echo (int) $gasf_hero_days; ?> days &mdash; increase the number above to look further out.</p>
+			<?php endif; ?>
+
+			<?php $gasf_hero_mem = gasf_hero_memory_all(); if ( $gasf_hero_mem ) : uasort( $gasf_hero_mem, function ( $a, $b ) { return ( $b['ts'] ?? 0 ) <=> ( $a['ts'] ?? 0 ); } ); ?>
+			<details style="margin:0 0 18px;max-width:900px">
+				<summary style="cursor:pointer;font-weight:600">&#8635; Remembered fields (<?php echo count( $gasf_hero_mem ); ?>)</summary>
+				<p class="description" style="margin:6px 0">Saved automatically each time you schedule a hero linked to an event; the newest save for an event name wins. Quick-create tiles marked <span style="color:#6d28d9;font-weight:600">&#8635; saved fields</span> pre-fill from here.</p>
+				<table class="widefat striped" style="margin-top:4px">
+					<thead><tr><th>Event</th><th>Caption</th><th>Button</th><th>Saved</th><th></th></tr></thead>
+					<tbody>
+					<?php foreach ( $gasf_hero_mem as $mk => $mv ) : ?>
+						<tr>
+							<td><strong><?php echo esc_html( $mv['title'] ?? $mk ); ?></strong></td>
+							<td><?php echo '' !== ( $mv['caption'] ?? '' ) ? esc_html( wp_trim_words( wp_strip_all_tags( $mv['caption'] ), 10 ) ) : '<span style="color:#999">&mdash;</span>'; ?></td>
+							<td><?php echo '' !== ( $mv['button_url'] ?? '' ) ? esc_html( ( '' !== ( $mv['button_label'] ?? '' ) ? $mv['button_label'] : 'Learn More' ) . ' → ' . $mv['button_url'] ) : '<span style="color:#999">&mdash;</span>'; ?></td>
+							<td><?php echo ! empty( $mv['ts'] ) ? esc_html( wp_date( 'M j, Y', (int) $mv['ts'] ) ) : '&mdash;'; ?></td>
+							<td>
+								<form method="post" style="margin:0" onsubmit="return confirm('Forget the saved fields for this event name?');">
+									<?php wp_nonce_field( 'gasf_hero_action' ); ?>
+									<input type="hidden" name="gasf_hero_forget" value="<?php echo esc_attr( $mk ); ?>">
+									<button type="submit" class="button-link-delete">Forget</button>
+								</form>
+							</td>
+						</tr>
+					<?php endforeach; ?>
+					</tbody>
+				</table>
+			</details>
 			<?php endif; ?>
 
 			<h3 class="title">Add / schedule a hero</h3>
@@ -655,12 +754,18 @@ if ( ! function_exists( 'gasf_hero_active' ) && \GASF_Events\Settings::heroes_en
 			});
 
 			// Quick-create: clicking an upcoming-event card pre-fills the form below.
+			// Caption/button come from the field memory saved with the last hero
+			// for a similarly-named event (empty when there is none — also clears
+			// leftovers from a previously clicked tile).
 			$('.gasf-hero-up__item').on('click', function(){
 				var b = $(this);
 				$('#gasf_hero_image_id').val( b.data('image-id') || '' );
 				$('#gasf_hero_event_id').val( b.data('event-id') || '' );
 				$('#gasf_hero_image_url').val( b.data('url') || '' );
 				$('#gasf_hero_activate_at').val( b.data('activate') || '' );
+				$('#gasf_hero_caption').val( b.attr('data-caption') || '' );      // .attr() — preserves HTML
+				$('#gasf_hero_button_label').val( b.attr('data-button-label') || '' );
+				$('#gasf_hero_button_url').val( b.attr('data-button-url') || '' );
 				var t = b.data('thumb');
 				if ( t ) { $('#gasf_hero_preview').html('<img src="'+t+'" style="max-width:100%;height:auto;border:1px solid #ddd;border-radius:4px">'); }
 				$('html,body').animate({ scrollTop: $('#gasf_hero_activate_at').closest('table').offset().top - 80 }, 300);
