@@ -489,6 +489,12 @@ if ( ! function_exists( 'gasf_hero_active' ) && \GASF_Events\Settings::heroes_en
 		$active    = gasf_hero_active();
 		$active_id = $active ? $active['id'] : '';
 		$tz        = wp_timezone_string();
+		// What [gas_hero] ACTUALLY shows: same filter chain as the front end.
+		// Only this one row may say LIVE NOW — a due-but-outranked recurring
+		// hero is "pending", not live (it can't be on the page).
+		$winner              = apply_filters( 'gasf_hero_active_entry', $active );
+		$winner_id           = ( is_array( $winner ) && isset( $winner['id'] ) ) ? $winner['id'] : '';
+		$winner_is_recurring = is_array( $winner ) && ! isset( $winner['id'] );
 		?>
 			<h2>Home Page Hero</h2>
 			<?php
@@ -662,9 +668,20 @@ if ( ! function_exists( 'gasf_hero_active' ) && \GASF_Events\Settings::heroes_en
 				}
 				if ( $active_rec ) {
 					$rexp = isset( $active_rec['_expire_at'] ) ? (int) $active_rec['_expire_at'] : 0;
-					$rst  = '<strong style="color:#1a7f37">&#9679; LIVE NOW</strong>'
-						. ( $rexp > $now ? '<br><small style="color:#666">ends ' . esc_html( wp_date( 'M j, g:i a', $rexp ) ) . '</small>' : '' )
-						. '<br><small style="color:#6d28d9">&#8635; recurring</small>';
+					if ( $winner_is_recurring ) {
+						$rst = '<strong style="color:#1a7f37">&#9679; LIVE NOW</strong>'
+							. ( $rexp > $now ? '<br><small style="color:#666">ends ' . esc_html( wp_date( 'M j, g:i a', $rexp ) ) . '</small>' : '' )
+							. '<br><small style="color:#6d28d9">&#8635; recurring</small>';
+					} else {
+						// In window but outranked: a manual hero holds the page.
+						$mexp = ( is_array( $winner ) ) ? gasf_hero_entry_expires( $winner ) : 0;
+						$takeover = ( $mexp > $now && ( ! $rexp || $mexp < $rexp ) )
+							? 'takes over ' . esc_html( wp_date( 'M j, g:i a', $mexp ) )
+							: 'manual hero holds the page';
+						$rst = '<span style="color:#b45309">&#10074;&#10074; pending</span>'
+							. '<br><small style="color:#666">' . $takeover . '</small>'
+							. '<br><small style="color:#6d28d9">&#8635; recurring</small>';
+					}
 					$rows[] = array( 'ts' => (int) $active_rec['activate_at'], 'html' => gasf_hero_recurring_row_html( $active_rec, $rst ) );
 				}
 				// Skip the projection if it's the same occurrence already shown as LIVE NOW.
@@ -675,9 +692,12 @@ if ( ! function_exists( 'gasf_hero_active' ) && \GASF_Events\Settings::heroes_en
 				foreach ( $entries as $e ) {
 					$ts  = (int) $e['activate_at'];
 					$exp = gasf_hero_entry_expires( $e );
-					if ( $e['id'] === $active_id ) {
+					if ( $e['id'] !== '' && $e['id'] === $winner_id ) {
 						$status = '<strong style="color:#1a7f37">&#9679; LIVE NOW</strong>'
 							. ( $exp > $now ? '<br><small style="color:#666">ends ' . esc_html( wp_date( 'M j, g:i a', $exp ) ) . '</small>' : '' );
+					} elseif ( $e['id'] === $active_id && $winner_is_recurring ) {
+						// Newest valid manual, but the recurring hero outranks it.
+						$status = '<span style="color:#b45309">&#10074;&#10074; overridden</span><br><small style="color:#666">recurring hero has the page</small>';
 					} elseif ( $exp > 0 && $exp <= $now ) {
 						$status = '<span style="color:#b45309" title="Linked event has ended — this hero retired automatically">ended</span>';
 					} elseif ( $ts > $now ) {
