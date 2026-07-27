@@ -134,14 +134,27 @@
 .gasf-status { display:inline-block; margin-left:8px; font-size:.72rem; padding:1px 7px; border-radius:10px; background:var(--gasf-cancelled); color:#fff; }
 .gasf-empty { opacity:.7; font-style:italic; }
 
-/* ---- Upcoming widget ---- */
+/* ---- Upcoming widget ----
+   Date and time hold fixed columns so the rows line up, and the title takes
+   the rest. In a NARROW container that arrangement collapses: the two fixed
+   columns are ~10.5em, and whatever is left gets the title — on /fcbmc/,
+   where the widget sits in a half-width page column beside the Bundesliga
+   table, "Telekom Cup – FC Bayern v RB Leipzig" was breaking across six lines.
+
+   The fix is width-driven rather than viewport-driven, deliberately: a media
+   query asks how wide the SCREEN is, and the screen was never the problem —
+   a desktop visitor saw this too, because the constraint is the column. Giving
+   the title a flex-basis and letting the row wrap makes it drop to its own
+   full-width line whenever its column would be narrower than that basis, and
+   sit inline whenever there is room. The widget adapts to whatever box it is
+   placed in, with no breakpoint to keep in sync with the page layouts. */
 .gasf-upcoming__heading { display:flex; align-items:center; gap:8px; }
 .gasf-upcoming__list { list-style:none; margin:0; padding:0; }
-.gasf-upcoming__item a { display:flex; gap:10px; align-items:baseline; text-decoration:none; color:inherit; padding:7px 6px; border-bottom:1px solid var(--gasf-border); }
+.gasf-upcoming__item a { display:flex; flex-wrap:wrap; gap:2px 10px; align-items:baseline; text-decoration:none; color:inherit; padding:7px 6px; border-bottom:1px solid var(--gasf-border); }
 .gasf-upcoming__item a:hover { color:var(--gasf-accent); }
 .gasf-upcoming__date { font-weight:700; color:var(--gasf-accent); min-width:5.5em; }
 .gasf-upcoming__time { opacity:.7; min-width:5em; }
-.gasf-upcoming__name { flex:1; }
+.gasf-upcoming__name { flex:1 1 11em; min-width:0; overflow-wrap:anywhere; }
 
 /* ---- Home agenda (replaces the old MEC modern-list home block #12976) ----
    Self-contained: GASF Events owns these colour tokens outright — no dependency
