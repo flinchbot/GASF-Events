@@ -18,6 +18,7 @@ final class Settings {
 	const OPT_DEFAULT_IMG = 'gasf_events_default_image';
 	const OPT_HEROES     = 'gasf_events_heroes_enabled';
 	const OPT_DINNER_FILTER = 'gasf_events_dinner_filter';
+	const OPT_BAYERN_FILTER = 'gasf_events_bayern_filter';
 
 	/**
 	 * The title text that makes an event a "Dinner Night" for
@@ -30,6 +31,18 @@ final class Settings {
 	public static function dinner_filter(): string {
 		$v = trim( (string) get_option( self::OPT_DINNER_FILTER, '' ) );
 		return '' !== $v ? $v : 'Dinner';
+	}
+
+	/**
+	 * Same idea for [gasf_bayern_events]. The default 'FC Bayern v' is a
+	 * deliberate prefix-of-a-phrase: as a CONTAINS match it catches
+	 * "FC Bayern v X", "FC Bayern vs X" and cup naming like "DFB Pokalfinale
+	 * FC Bayern v Stuttgart". Blank falls back to the default rather than to
+	 * match-everything, same as the dinner filter.
+	 */
+	public static function bayern_filter(): string {
+		$v = trim( (string) get_option( self::OPT_BAYERN_FILTER, '' ) );
+		return '' !== $v ? $v : 'FC Bayern v';
 	}
 
 	/**
@@ -142,6 +155,10 @@ final class Settings {
 			'type'              => 'string',
 			'sanitize_callback' => 'sanitize_text_field',
 		] );
+		register_setting( 'gasf_events_settings', self::OPT_BAYERN_FILTER, [
+			'type'              => 'string',
+			'sanitize_callback' => 'sanitize_text_field',
+		] );
 	}
 
 	public function sanitize_venue( $input ): array {
@@ -177,6 +194,7 @@ final class Settings {
 		$img_url       = $img_id ? wp_get_attachment_image_url( $img_id, 'medium' ) : '';
 		$alert_email   = Alerts::email();
 		$dinner_filter = self::dinner_filter();
+		$bayern_filter = self::bayern_filter();
 		require GASF_EVENTS_DIR . 'admin/views/settings.php';
 	}
 }

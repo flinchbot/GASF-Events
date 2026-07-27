@@ -9,6 +9,7 @@
  * @var string $img_url
  * @var string $alert_email
  * @var string $dinner_filter
+ * @var string $bayern_filter
  */
 
 namespace GASF_Events;
@@ -35,20 +36,31 @@ defined( 'ABSPATH' ) || exit;
 				</td></tr>
 		</table>
 
-		<h2><?php esc_html_e( 'Dinner Night list', 'gasf-events' ); ?></h2>
-		<p class="description"><?php
-			printf(
-				/* translators: 1: [gasf_dinner_events] shortcode, 2: /dinner-night/ path */
-				esc_html__( 'Which events the %1$s list (the calendar on %2$s) shows.', 'gasf-events' ),
-				'<code>[gasf_dinner_events]</code>',
-				'<code>/dinner-night/</code>'
-			);
-		?></p>
+		<h2><?php esc_html_e( 'Event list filters', 'gasf-events' ); ?></h2>
+		<p class="description"><?php esc_html_e( 'Which events the preset shortcode lists show. Each is a case-insensitive "title contains" match — an event appears when this text occurs anywhere in its title. A blank field falls back to its default; it never matches everything.', 'gasf-events' ); ?></p>
 		<table class="form-table" role="presentation">
-			<tr><th><label for="gasf_dinner_filter"><?php esc_html_e( 'Title contains', 'gasf-events' ); ?></label></th>
+			<tr><th><label for="gasf_dinner_filter"><?php esc_html_e( 'Dinner Nights', 'gasf-events' ); ?></label></th>
 				<td>
 					<input type="text" class="regular-text" id="gasf_dinner_filter" name="<?php echo esc_attr( Settings::OPT_DINNER_FILTER ); ?>" value="<?php echo esc_attr( $dinner_filter ); ?>">
-					<p class="description"><?php esc_html_e( 'An event appears on the dinner page when its title contains this text (capitalisation ignored, anywhere in the title). "Dinner" matches both "Dinner Night at the German American Society" and "Are You Ready for Oktoberfest Dinner and Dance". Left blank, it falls back to "Dinner" — it never matches everything.', 'gasf-events' ); ?></p>
+					<p class="description"><?php
+						printf(
+							/* translators: 1: [gasf_dinner_events] shortcode, 2: /dinner-night/ path */
+							esc_html__( 'Feeds %1$s on %2$s. Default "Dinner" — matches both "Dinner Night at the German American Society" and "Are You Ready for Oktoberfest Dinner and Dance".', 'gasf-events' ),
+							'<code>[gasf_dinner_events]</code>',
+							'<code>/dinner-night/</code>'
+						);
+					?></p>
+				</td></tr>
+			<tr><th><label for="gasf_bayern_filter"><?php esc_html_e( 'FC Bayern matches', 'gasf-events' ); ?></label></th>
+				<td>
+					<input type="text" class="regular-text" id="gasf_bayern_filter" name="<?php echo esc_attr( Settings::OPT_BAYERN_FILTER ); ?>" value="<?php echo esc_attr( $bayern_filter ); ?>">
+					<p class="description"><?php
+						printf(
+							/* translators: %s: [gasf_bayern_events] shortcode */
+							esc_html__( 'Feeds %s. Default "FC Bayern v" — the trailing "v" is deliberate: as a contains-match it catches "FC Bayern v X", "FC Bayern vs X" and "DFB Pokalfinale FC Bayern v Stuttgart", without matching an event that merely mentions the club. If you change the naming standard for match events, change it here to match.', 'gasf-events' ),
+							'<code>[gasf_bayern_events]</code>'
+						);
+					?></p>
 				</td></tr>
 		</table>
 

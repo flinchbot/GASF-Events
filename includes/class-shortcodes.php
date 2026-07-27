@@ -74,14 +74,17 @@ final class Shortcodes {
 	}
 
 	/**
-	 * [gasf_bayern_events] — thin preset over the generic filter (replaces the
-	 * GASF-Utilities [bayern_match_events] module). "FC Bayern v" CONTAINS
-	 * matching catches "FC Bayern v X", "FC Bayern vs X" and cup naming like
-	 * "DFB Pokalfinale FC Bayern v Stuttgart".
+	 * [gasf_bayern_events contains="" heading="" limit="5"] — thin preset over
+	 * the generic filter (replaces the GASF-Utilities [bayern_match_events]
+	 * module). The title match comes from Events → Settings (hardcoded to
+	 * 'FC Bayern v' through v0.18.0 — see Settings::bayern_filter() for why
+	 * the trailing "v" matters); a contains="" attribute still overrides the
+	 * setting for a one-off page.
 	 */
 	public function bayern( $atts ): string {
-		$atts = shortcode_atts( [ 'heading' => __( 'Upcoming FC Bayern Matches', 'gasf-events' ), 'limit' => 5 ], $atts, 'gasf_bayern_events' );
-		return $this->upcoming_dates( [ 'contains' => 'FC Bayern v', 'heading' => $atts['heading'], 'icon' => '⚽', 'limit' => $atts['limit'] ] );
+		$atts = shortcode_atts( [ 'heading' => __( 'Upcoming FC Bayern Matches', 'gasf-events' ), 'limit' => 5, 'contains' => '' ], $atts, 'gasf_bayern_events' );
+		$contains = '' !== trim( (string) $atts['contains'] ) ? (string) $atts['contains'] : Settings::bayern_filter();
+		return $this->upcoming_dates( [ 'contains' => $contains, 'heading' => $atts['heading'], 'icon' => '⚽', 'limit' => $atts['limit'] ] );
 	}
 
 	/**
