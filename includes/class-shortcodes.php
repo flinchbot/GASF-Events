@@ -82,9 +82,23 @@ final class Shortcodes {
 	 * setting for a one-off page.
 	 */
 	public function bayern( $atts ): string {
-		$atts = shortcode_atts( [ 'heading' => __( 'Upcoming FC Bayern Matches', 'gasf-events' ), 'limit' => 5, 'contains' => '' ], $atts, 'gasf_bayern_events' );
+		$atts = shortcode_atts( [
+			'heading' => __( 'Upcoming FC Bayern Matches', 'gasf-events' ),
+			'limit'   => 5,
+			'contains' => '',
+			// Bayern blue, matching the club styling already used on /fcbmc/.
+			// The generic widget defaults to the gold accent; only this preset
+			// overrides it, so the dinner list is unaffected.
+			'color'   => '#0033A0',
+		], $atts, 'gasf_bayern_events' );
 		$contains = '' !== trim( (string) $atts['contains'] ) ? (string) $atts['contains'] : Settings::bayern_filter();
-		return $this->upcoming_dates( [ 'contains' => $contains, 'heading' => $atts['heading'], 'icon' => '⚽', 'limit' => $atts['limit'] ] );
+		return $this->upcoming_dates( [
+			'contains' => $contains,
+			'heading'  => $atts['heading'],
+			'icon'     => '⚽',
+			'limit'    => $atts['limit'],
+			'color'    => $atts['color'],
+		] );
 	}
 
 	/**
