@@ -3,7 +3,7 @@
  * Plugin Name:       GASF Events
  * Plugin URI:        https://github.com/GermanTampaBay/GASF-Events
  * Description:       Lean, native events for the German American Society — replaces Modern Events Calendar. Owns event data, display, Facebook import, Eventbrite/Google syndication, public feeds, and the home-page hero banners.
- * Version:           0.19.1
+ * Version:           0.19.2
  * Requires at least: 6.0
  * Requires PHP:      8.0
  * Author:            flinchbot
@@ -23,7 +23,29 @@ namespace GASF_Events;
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'GASF_EVENTS_VERSION', '0.17.2' );
+/**
+ * Cache-buster for the enqueued CSS/JS, read FROM THE PLUGIN HEADER rather
+ * than repeated as a literal.
+ *
+ * It was a second hardcoded string, and it silently drifted three releases
+ * behind: 0.18.0, 0.19.0 and 0.19.1 all shipped while every visitor kept being
+ * served `gasf-events.css?ver=0.17.2` — the same URL they already had cached,
+ * so a CSS change could not reach anybody no matter how many times the plugin
+ * updated. Deriving it means the header bump that ships a release is also the
+ * bump that busts the cache, and the two can never disagree again.
+ *
+ * get_file_data() is a cheap header read; the result is cached for a day so
+ * it is not re-read on every request. get_plugin_data() is not used because
+ * it lives in wp-admin and is unavailable on front-end requests.
+ */
+$gasf_events_ver = get_transient( 'gasf_events_asset_ver' );
+if ( ! is_string( $gasf_events_ver ) || '' === $gasf_events_ver ) {
+	$gasf_events_ver = get_file_data( __FILE__, array( 'v' => 'Version' ) )['v'];
+	if ( '' === $gasf_events_ver ) { $gasf_events_ver = '0'; } // never cache-key on empty
+	set_transient( 'gasf_events_asset_ver', $gasf_events_ver, DAY_IN_SECONDS );
+}
+define( 'GASF_EVENTS_VERSION', $gasf_events_ver );
+unset( $gasf_events_ver );
 define( 'GASF_EVENTS_FILE', __FILE__ );
 define( 'GASF_EVENTS_DIR', plugin_dir_path( __FILE__ ) );
 define( 'GASF_EVENTS_URL', plugin_dir_url( __FILE__ ) );

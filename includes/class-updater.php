@@ -121,6 +121,11 @@ final class Updater {
 		if ( ! $this->is_ours( (array) $hook_extra ) ) {
 			return $result;
 		}
+		// The asset cache-buster is a day-cached read of this file's Version
+		// header, so an update must drop it or the newly installed CSS/JS keeps
+		// being served under the previous version's URL — cached, and therefore
+		// invisible, for up to a day after a release that was meant to fix it.
+		delete_transient( 'gasf_events_asset_ver' );
 		$installed = dirname( $this->file );
 		$backup    = $this->backup_dir();
 		$broken    = is_wp_error( $result ) || ! file_exists( trailingslashit( $installed ) . basename( $this->file ) );
