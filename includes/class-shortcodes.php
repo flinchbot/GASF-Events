@@ -61,10 +61,16 @@ final class Shortcodes {
 		return $this->render( 'view-upcoming', [ 'events' => $events, 'atts' => $atts ] );
 	}
 
-	/** [gasf_dinner_events] — thin preset over the generic filter. */
+	/**
+	 * [gasf_dinner_events contains="" heading="" limit="6"] — thin preset over
+	 * the generic filter. The title match comes from Events → Settings (it was
+	 * hardcoded to 'Dinner' through v0.17.x); a contains="" attribute on the
+	 * shortcode still overrides the setting for a one-off page.
+	 */
 	public function dinner( $atts ): string {
-		$atts = shortcode_atts( [ 'heading' => __( 'Upcoming Dinner Nights', 'gasf-events' ), 'limit' => 6 ], $atts, 'gasf_dinner_events' );
-		return $this->upcoming_dates( [ 'contains' => 'Dinner', 'heading' => $atts['heading'], 'icon' => '🍽️', 'limit' => $atts['limit'] ] );
+		$atts = shortcode_atts( [ 'heading' => __( 'Upcoming Dinner Nights', 'gasf-events' ), 'limit' => 6, 'contains' => '' ], $atts, 'gasf_dinner_events' );
+		$contains = '' !== trim( (string) $atts['contains'] ) ? (string) $atts['contains'] : Settings::dinner_filter();
+		return $this->upcoming_dates( [ 'contains' => $contains, 'heading' => $atts['heading'], 'icon' => '🍽️', 'limit' => $atts['limit'] ] );
 	}
 
 	/**

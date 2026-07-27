@@ -8,6 +8,7 @@
  * @var int    $img_id
  * @var string $img_url
  * @var string $alert_email
+ * @var string $dinner_filter
  */
 
 namespace GASF_Events;
@@ -31,6 +32,23 @@ defined( 'ABSPATH' ) || exit;
 							'<code>[gas_hero]</code>'
 						);
 					?></p>
+				</td></tr>
+		</table>
+
+		<h2><?php esc_html_e( 'Dinner Night list', 'gasf-events' ); ?></h2>
+		<p class="description"><?php
+			printf(
+				/* translators: 1: [gasf_dinner_events] shortcode, 2: /dinner-night/ path */
+				esc_html__( 'Which events the %1$s list (the calendar on %2$s) shows.', 'gasf-events' ),
+				'<code>[gasf_dinner_events]</code>',
+				'<code>/dinner-night/</code>'
+			);
+		?></p>
+		<table class="form-table" role="presentation">
+			<tr><th><label for="gasf_dinner_filter"><?php esc_html_e( 'Title contains', 'gasf-events' ); ?></label></th>
+				<td>
+					<input type="text" class="regular-text" id="gasf_dinner_filter" name="<?php echo esc_attr( Settings::OPT_DINNER_FILTER ); ?>" value="<?php echo esc_attr( $dinner_filter ); ?>">
+					<p class="description"><?php esc_html_e( 'An event appears on the dinner page when its title contains this text (capitalisation ignored, anywhere in the title). "Dinner" matches both "Dinner Night at the German American Society" and "Are You Ready for Oktoberfest Dinner and Dance". Left blank, it falls back to "Dinner" — it never matches everything.', 'gasf-events' ); ?></p>
 				</td></tr>
 		</table>
 

@@ -17,6 +17,20 @@ final class Settings {
 	const OPT_ORGANIZER  = 'gasf_events_organizer';
 	const OPT_DEFAULT_IMG = 'gasf_events_default_image';
 	const OPT_HEROES     = 'gasf_events_heroes_enabled';
+	const OPT_DINNER_FILTER = 'gasf_events_dinner_filter';
+
+	/**
+	 * The title text that makes an event a "Dinner Night" for
+	 * [gasf_dinner_events] (the list on /dinner-night/). Case-insensitive
+	 * CONTAINS match against the event title; hardcoded to 'Dinner' through
+	 * v0.17.x. A blank saved value falls back to 'Dinner' rather than to
+	 * match-everything — an empty CONTAINS would put the entire calendar on
+	 * the dinner page.
+	 */
+	public static function dinner_filter(): string {
+		$v = trim( (string) get_option( self::OPT_DINNER_FILTER, '' ) );
+		return '' !== $v ? $v : 'Dinner';
+	}
 
 	/**
 	 * Whether the home-page Heroes feature (heroes.php + recurring-heroes.php) runs.
@@ -124,6 +138,10 @@ final class Settings {
 			// Unchecked box submits nothing → store '0'; checked → '1'.
 			'sanitize_callback' => static fn( $v ) => ! empty( $v ) ? '1' : '0',
 		] );
+		register_setting( 'gasf_events_settings', self::OPT_DINNER_FILTER, [
+			'type'              => 'string',
+			'sanitize_callback' => 'sanitize_text_field',
+		] );
 	}
 
 	public function sanitize_venue( $input ): array {
@@ -153,11 +171,12 @@ final class Settings {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
-		$venue       = self::venue();
-		$organizer   = self::organizer();
-		$img_id      = self::default_image_id();
-		$img_url     = $img_id ? wp_get_attachment_image_url( $img_id, 'medium' ) : '';
-		$alert_email = Alerts::email();
+		$venue         = self::venue();
+		$organizer     = self::organizer();
+		$img_id        = self::default_image_id();
+		$img_url       = $img_id ? wp_get_attachment_image_url( $img_id, 'medium' ) : '';
+		$alert_email   = Alerts::email();
+		$dinner_filter = self::dinner_filter();
 		require GASF_EVENTS_DIR . 'admin/views/settings.php';
 	}
 }

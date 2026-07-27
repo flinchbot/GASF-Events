@@ -17,9 +17,13 @@ defined( 'ABSPATH' ) || exit;
 
 final class Updater {
 
-	const REPO      = 'flinchbot/GASF-Events';
-	const RAW_MAIN  = 'https://raw.githubusercontent.com/flinchbot/GASF-Events/main/gasf-events.php';
-	const PACKAGE   = 'https://github.com/flinchbot/GASF-Events/archive/refs/heads/main.zip';
+	// Moved from the flinchbot personal account to the GermanTampaBay
+	// organisation 2026-07-27. GitHub redirects the old URLs for now, but an
+	// updater that fails silently (the version check stores '0' on any fetch
+	// failure) should not lean on a redirect chain forever.
+	const REPO      = 'GermanTampaBay/GASF-Events';
+	const RAW_MAIN  = 'https://raw.githubusercontent.com/GermanTampaBay/GASF-Events/main/gasf-events.php';
+	const PACKAGE   = 'https://github.com/GermanTampaBay/GASF-Events/archive/refs/heads/main.zip';
 	const CACHE_KEY = 'gasf_events_update_check';
 
 	private string $file; // absolute path to gasf-events.php
