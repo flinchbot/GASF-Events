@@ -344,7 +344,9 @@ For each fetched occurrence, find existing `gasf_event` by `_gasf_fb_event_id`:
 
 The kiosk (this repo's Phase 3, *not yet built*) currently plans to "sync from WordPress MEC." Replace that with a **clean, owned contract** the kiosk consumes — better than scraping MEC endpoints:
 
-- **REST:** `GET /wp-json/gasf-events/v1/events?from=&to=&limit=&updated_since=` → normalized JSON (id, title, slug, url, start, end, all_day, status, image, organizer, series_id, description). `updated_since` enables **incremental** kiosk sync. Cache-friendly. *(Lock this JSON contract before the kiosk Phase 3 is built — see §10.)*
+- **REST:** `GET /wp-json/gasf-events/v1/events?from=&to=&limit=&order=&fields=&updated_since=` → normalized JSON (id, title, slug, url, start, end, all_day, status, image, description, organizer, venue, series_id, source, modified). `updated_since` enables **incremental** kiosk sync. Cache-friendly. Full reference: [`REST-API.md`](REST-API.md). *(Lock this JSON contract before the kiosk Phase 3 is built — see §10.)*
+  - **`fields` (v0.22.0)** — either an include list (`fields=title,start`) or an exclude list (`fields=-description`); mixing the two, or naming a field that doesn't exist, is a 400 rather than a guess. Nothing is force-included, so the response holds exactly what was asked for. The no-`fields` payload is unchanged and stays the frozen contract; new fields only ever append. Fields are built individually, so an unrequested `description` never runs `do_shortcode()` and an unrequested `image` never touches the attachment tables — the saving is real work skipped, not just bytes trimmed.
+  - **`order` (v0.22.0)** — `asc` (default, soonest first, so `limit=1` is "the next event") or `desc`.
 - **iCal — per-event:** `/?gasf-events-ical=1&event=<id>` → powers the Apple/"Download .ics" add-to-calendar (§5.6).
 - **iCal — whole-calendar subscription:** `/?gasf-events-ical=1` (optionally `webcal://…`) → a **subscribable feed** members add to their phone once and it stays updated. Replaces MEC's `?mec-ical-feed=1`. (In-core Google/Eventbrite syndication reads events directly, not via this feed — §7.1.)
 

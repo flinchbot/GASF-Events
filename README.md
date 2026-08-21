@@ -12,6 +12,17 @@ A lean, native WordPress events plugin for the **German American Society of Tamp
 - Native **Facebook import** (replacing the 3rd-party importer + MU band-aids) and three-way **FB → WP → Eventbrite** sync, all gated OFF until cutover.
 - Recurring events as a lightweight **flat-but-grouped series**, an **All Events** admin list with bulk actions, and per-event **view stats**.
 
+## Public API
+
+A read-only JSON feed of published events, no key required:
+
+```
+GET /wp-json/gasf-events/v1/events?limit=5&fields=title,start,image
+```
+
+`limit`, `order`, `from`/`to`, `updated_since`, and a `fields` include/exclude
+list. See [`docs/REST-API.md`](docs/REST-API.md).
+
 ## Phases
 
 See `docs/ARCHITECTURE.md` §11. P1 (this commit) = plugin scaffold, `gasf_event` model, settings, Event Details meta box, and the All Events list.
