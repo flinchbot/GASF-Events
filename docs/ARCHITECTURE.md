@@ -137,10 +137,12 @@ Three global plugin options replace MEC's taxonomies and feed the schema (§5.7)
 gasf_events_venue       = { name, street, city, state, zip, country, lat, lng, hide_map (bool) }
 gasf_events_organizer   = { name, url }                  // → schema Event.organizer {name, url}
 gasf_events_default_image = attachment_id | url          // site-wide fallback cover
+gasf_events_type_rules  = [ { match, icon, color }, … ]  // calendar emoji/colour, first match wins
 ```
 - **Venue default:** *German American Society, 8098 66th Street North, Pinellas Park, FL 33781*. Optional per-event override meta `_gasf_venue_override` (rare).
 - **Organizer default:** *German American Society* + the club URL. Optional per-event override meta `_gasf_organizer_override`.
 - **Default image (required for schema):** Google's Event rich results **require an `image`**, and some FB/manual events arrive with no cover. So a configurable fallback image is used everywhere a cover is missing — in the month grid, list, signage tiles, the single page, **and** the JSON-LD `image`. Guarantees no event is image-less.
+- **Calendar icons & colours (v0.21.0):** each event chip carries an emoji and a soft background colour. `Event::builtin_type()` guesses both from a shipped keyword map over the title *and* description; `gasf_events_type_rules` lets a maintainer override that from Events → Settings with ordered "title contains" rules (first match wins), so naming an event's look no longer needs a code change. Rules match the **title only** — an explicit rule shouldn't fire on stray description text. A blank emoji or colour in a rule inherits that field from the built-in guess, so one field can be overridden alone.
 - **Drop** `mec_location`/`mec_organizer` taxonomies entirely.
 
 ### 4.4 Tables dropped after cutover

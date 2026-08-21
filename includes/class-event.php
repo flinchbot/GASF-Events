@@ -18,6 +18,9 @@ final class Event {
 	/** @var \WP_Post */
 	private $post;
 
+	/** @var array{0:string,1:string}|null Memoised type() result. */
+	private $type_cache = null;
+
 	public function __construct( $post ) {
 		$this->post = get_post( $post );
 	}
@@ -43,13 +46,56 @@ final class Event {
 	}
 
 	/**
-	 * Event "type" derived from the title/description: an emoji + a colour, used
-	 * for the calendar icon and the soft colour behind each event. One keyword
-	 * map drives both so they never drift. Order matters (specific first).
+	 * Event "type": an emoji + a colour, used for the calendar icon and the soft
+	 * colour behind each event. One lookup drives both so they never drift.
+	 *
+	 * Two layers, admin-defined first: the title-match rules from
+	 * Events → Settings → "Calendar icons & colours" win over the built-in
+	 * keyword map below, so the club can name an event's look without a code
+	 * change (and can override a built-in guess it disagrees with — "Volleyball"
+	 * picking up the 💃 from 'ball', say).
+	 *
+	 * Memoised: icon() and color() each call this, so a month grid asks twice
+	 * per event, and the built-in map reads description() → do_shortcode().
 	 *
 	 * @return array{0:string,1:string} [ emoji, hex colour ]
 	 */
 	private function type(): array {
+		if ( null !== $this->type_cache ) {
+			return $this->type_cache;
+		}
+		$this->type_cache = $this->resolve_type();
+		return $this->type_cache;
+	}
+
+	private function resolve_type(): array {
+		$title = $this->title();
+		foreach ( Settings::type_rules() as $rule ) {
+			if ( false === mb_stripos( $title, $rule['match'] ) ) {
+				continue;
+			}
+			// Both fields set is the common case, and returning here keeps the
+			// built-in map (and its do_shortcode() pass) from running at all.
+			if ( '' !== $rule['icon'] && '' !== $rule['color'] ) {
+				return [ $rule['icon'], $rule['color'] ];
+			}
+			$base = $this->builtin_type();
+			return [
+				'' !== $rule['icon'] ? $rule['icon'] : $base[0],
+				'' !== $rule['color'] ? $rule['color'] : $base[1],
+			];
+		}
+		return $this->builtin_type();
+	}
+
+	/**
+	 * The shipped keyword map — the fallback when no admin rule matches. Reads
+	 * title AND description (a rule reads the title only). Order matters
+	 * (specific first).
+	 *
+	 * @return array{0:string,1:string} [ emoji, hex colour ]
+	 */
+	private function builtin_type(): array {
 		$t = mb_strtolower( $this->title() . ' ' . wp_strip_all_tags( $this->description() ) );
 		$map = [
 			'euchre'       => [ '🃏', '#b22222' ],
@@ -76,7 +122,7 @@ final class Event {
 				return $pair;
 			}
 		}
-		return [ '📅', '#5a6b85' ]; // default
+		return [ '📅', Settings::DEFAULT_TYPE_COLOR ]; // default
 	}
 
 	/** Context emoji for the event (filterable). */

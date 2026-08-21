@@ -10,11 +10,46 @@
  * @var string $alert_email
  * @var string $dinner_filter
  * @var string $bayern_filter
+ * @var array  $type_rules
  */
 
 namespace GASF_Events;
 
 defined( 'ABSPATH' ) || exit;
+
+/**
+ * One rule row. Used for both the saved rows and the <template> the "Add rule"
+ * button clones, so the two can never drift. The index in the field name is
+ * rewritten by reindex() in JS after every add/remove/reorder — PHP needs real
+ * indices here (bare `[]` would scatter match/icon/color into separate rows).
+ */
+$render_rule_row = static function ( array $rule, int $i ) {
+	$name  = Settings::OPT_TYPE_RULES;
+	$icon  = (string) ( $rule['icon'] ?? '' );
+	$color = (string) ( $rule['color'] ?? '' );
+	$swatch = '' !== $color ? $color : Settings::DEFAULT_TYPE_COLOR;
+	?>
+	<tr>
+		<td><input type="text" class="regular-text gasf-rule-match" name="<?php echo esc_attr( $name ); ?>[<?php echo (int) $i; ?>][match]" value="<?php echo esc_attr( (string) ( $rule['match'] ?? '' ) ); ?>" placeholder="<?php esc_attr_e( 'Euchre', 'gasf-events' ); ?>"></td>
+		<td><input type="text" size="4" class="gasf-rule-icon" name="<?php echo esc_attr( $name ); ?>[<?php echo (int) $i; ?>][icon]" value="<?php echo esc_attr( $icon ); ?>" placeholder="🃏"></td>
+		<td class="gasf-rule-color">
+			<input type="color" class="gasf-rule-swatch" value="<?php echo esc_attr( $swatch ); ?>" aria-label="<?php esc_attr_e( 'Pick colour', 'gasf-events' ); ?>">
+			<input type="text" size="9" class="gasf-rule-hex" name="<?php echo esc_attr( $name ); ?>[<?php echo (int) $i; ?>][color]" value="<?php echo esc_attr( $color ); ?>" placeholder="<?php echo esc_attr( Settings::DEFAULT_TYPE_COLOR ); ?>">
+		</td>
+		<td>
+			<span class="gasf-rule-preview" style="--e-color:<?php echo esc_attr( $swatch ); ?>">
+				<span class="gasf-rule-preview__icon"><?php echo esc_html( '' !== $icon ? $icon : '📅' ); ?></span>
+				<span class="gasf-rule-preview__text"><?php echo esc_html( '' !== trim( (string) ( $rule['match'] ?? '' ) ) ? $rule['match'] : __( 'Event title', 'gasf-events' ) ); ?></span>
+			</span>
+		</td>
+		<td class="gasf-rule-actions">
+			<button type="button" class="button button-small gasf-rule-up" aria-label="<?php esc_attr_e( 'Move rule up', 'gasf-events' ); ?>">&uarr;</button>
+			<button type="button" class="button button-small gasf-rule-down" aria-label="<?php esc_attr_e( 'Move rule down', 'gasf-events' ); ?>">&darr;</button>
+			<button type="button" class="button button-small gasf-rule-remove" aria-label="<?php esc_attr_e( 'Remove rule', 'gasf-events' ); ?>">&times;</button>
+		</td>
+	</tr>
+	<?php
+};
 ?>
 <div class="wrap">
 	<h1><?php esc_html_e( 'Event Settings', 'gasf-events' ); ?></h1>
@@ -63,6 +98,27 @@ defined( 'ABSPATH' ) || exit;
 					?></p>
 				</td></tr>
 		</table>
+
+		<h2><?php esc_html_e( 'Calendar icons &amp; colours', 'gasf-events' ); ?></h2>
+		<p class="description"><?php esc_html_e( 'The emoji and the soft background colour on each event in the calendar. Each rule is a case-insensitive "title contains" match — the first rule whose text appears anywhere in the event title wins, so put the specific ones above the general ones ("FC Bayern v" above "Bayern").', 'gasf-events' ); ?></p>
+		<p class="description"><?php esc_html_e( 'Events matching no rule keep the icon and colour the plugin guesses from their title and description. Leave the emoji or the colour blank to keep that guess and override only the other one. Tip: press Windows + . to open the emoji picker.', 'gasf-events' ); ?></p>
+		<table class="widefat striped gasf-rules" id="gasf-rules">
+			<thead>
+				<tr>
+					<th scope="col"><?php esc_html_e( 'Title contains', 'gasf-events' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Emoji', 'gasf-events' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Colour', 'gasf-events' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Preview', 'gasf-events' ); ?></th>
+					<th scope="col"><span class="screen-reader-text"><?php esc_html_e( 'Actions', 'gasf-events' ); ?></span></th>
+				</tr>
+			</thead>
+			<tbody>
+				<?php foreach ( array_values( $type_rules ) as $i => $rule ) { $render_rule_row( (array) $rule, (int) $i ); } ?>
+			</tbody>
+		</table>
+		<p><button type="button" class="button" id="gasf-rule-add"><?php esc_html_e( '+ Add rule', 'gasf-events' ); ?></button></p>
+		<?php // Inert until cloned, so this row is never submitted as a phantom rule. ?>
+		<template id="gasf-rule-tpl"><?php $render_rule_row( [ 'match' => '', 'icon' => '', 'color' => '' ], 0 ); ?></template>
 
 		<h2><?php esc_html_e( 'Venue', 'gasf-events' ); ?></h2>
 		<p class="description"><?php esc_html_e( 'The default location for events. Used on event pages and in structured data.', 'gasf-events' ); ?></p>
@@ -113,6 +169,94 @@ defined( 'ABSPATH' ) || exit;
 		<?php submit_button(); ?>
 	</form>
 </div>
+<style>
+/* Preview mirrors .gasf-chip on the front end (assets/css/gasf-events.css) so
+   what the admin picks here is what the calendar shows. */
+.gasf-rules { margin-top:8px; max-width:920px; }
+.gasf-rules td, .gasf-rules th { vertical-align:middle; }
+.gasf-rule-color { white-space:nowrap; }
+.gasf-rule-swatch { vertical-align:middle; width:34px; height:28px; padding:1px; cursor:pointer; }
+.gasf-rule-icon { text-align:center; font-size:16px; }
+.gasf-rule-actions { white-space:nowrap; text-align:right; }
+.gasf-rule-preview {
+	display:inline-flex; gap:6px; align-items:center; max-width:100%;
+	padding:3px 8px; border-radius:5px; font-size:12px; line-height:1.3; color:#1d2327;
+	border-left:3px solid var(--e-color,#5a6b85);
+	background:linear-gradient(180deg, color-mix(in srgb, var(--e-color,#5a6b85) 7%, #fff), color-mix(in srgb, var(--e-color,#5a6b85) 20%, #fff));
+}
+.gasf-rule-preview__text { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+</style>
+<script>
+( function () {
+	var table = document.getElementById( 'gasf-rules' );
+	var tpl   = document.getElementById( 'gasf-rule-tpl' );
+	var add   = document.getElementById( 'gasf-rule-add' );
+	if ( ! table || ! tpl || ! add ) { return; }
+	var tbody = table.tBodies[0];
+	var HEX   = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
+
+	// PHP groups fields by the index in the name, so it has to match the row's
+	// actual position after any add / remove / reorder.
+	function reindex() {
+		Array.prototype.forEach.call( tbody.rows, function ( tr, i ) {
+			Array.prototype.forEach.call( tr.querySelectorAll( '[name]' ), function ( el ) {
+				el.name = el.name.replace( /\[\d+\]/, '[' + i + ']' );
+			} );
+		} );
+	}
+
+	function refresh( tr ) {
+		if ( ! tr ) { return; }
+		var icon = tr.querySelector( '.gasf-rule-icon' ).value.trim();
+		var hex  = tr.querySelector( '.gasf-rule-hex' ).value.trim();
+		var text = tr.querySelector( '.gasf-rule-match' ).value.trim();
+		var prev = tr.querySelector( '.gasf-rule-preview' );
+		prev.style.setProperty( '--e-color', HEX.test( hex ) ? hex : '#5a6b85' );
+		prev.querySelector( '.gasf-rule-preview__icon' ).textContent = icon || '📅';
+		prev.querySelector( '.gasf-rule-preview__text' ).textContent = text || 'Event title';
+	}
+
+	table.addEventListener( 'input', function ( e ) {
+		var tr = e.target.closest( 'tr' );
+		if ( ! tr || tr.parentNode !== tbody ) { return; }
+		// The picker and the hex box are two views of one value: typing a valid
+		// hex moves the swatch, and moving the swatch rewrites the hex box (which
+		// is the field that actually submits, so it still works without JS).
+		if ( e.target.classList.contains( 'gasf-rule-swatch' ) ) {
+			tr.querySelector( '.gasf-rule-hex' ).value = e.target.value;
+		} else if ( e.target.classList.contains( 'gasf-rule-hex' ) ) {
+			var v = e.target.value.trim();
+			if ( HEX.test( v ) ) { tr.querySelector( '.gasf-rule-swatch' ).value = v; }
+		}
+		refresh( tr );
+	} );
+
+	table.addEventListener( 'click', function ( e ) {
+		var btn = e.target.closest( 'button' );
+		if ( ! btn ) { return; }
+		var tr = btn.closest( 'tr' );
+		if ( ! tr || tr.parentNode !== tbody ) { return; }
+		if ( btn.classList.contains( 'gasf-rule-up' ) && tr.previousElementSibling ) {
+			tbody.insertBefore( tr, tr.previousElementSibling );
+		} else if ( btn.classList.contains( 'gasf-rule-down' ) && tr.nextElementSibling ) {
+			tbody.insertBefore( tr.nextElementSibling, tr );
+		} else if ( btn.classList.contains( 'gasf-rule-remove' ) ) {
+			tr.remove();
+		} else {
+			return;
+		}
+		reindex();
+	} );
+
+	add.addEventListener( 'click', function () {
+		tbody.appendChild( tpl.content.cloneNode( true ) );
+		reindex();
+		var tr = tbody.rows[ tbody.rows.length - 1 ];
+		refresh( tr );
+		tr.querySelector( '.gasf-rule-match' ).focus();
+	} );
+} )();
+</script>
 <script>
 ( function () {
 	// Attach on DOMContentLoaded and test wp.media at CLICK time — not now.

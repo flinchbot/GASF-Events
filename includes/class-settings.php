@@ -19,6 +19,50 @@ final class Settings {
 	const OPT_HEROES     = 'gasf_events_heroes_enabled';
 	const OPT_DINNER_FILTER = 'gasf_events_dinner_filter';
 	const OPT_BAYERN_FILTER = 'gasf_events_bayern_filter';
+	const OPT_TYPE_RULES = 'gasf_events_type_rules';
+
+	/** Colour used when neither a rule nor the built-in map supplies one. */
+	const DEFAULT_TYPE_COLOR = '#5a6b85';
+
+	/**
+	 * Admin-defined emoji + colour rules for the calendar chips, in priority
+	 * order (first match wins). Each row is a case-insensitive CONTAINS match
+	 * against the event TITLE only — deliberately narrower than the built-in
+	 * keyword map in Event::builtin_type(), which also reads the description:
+	 * a hand-written rule is an explicit decision about one kind of event, and
+	 * matching stray description text would make it fire where nobody asked.
+	 *
+	 * A blank emoji or colour means "inherit" — that field keeps whatever the
+	 * built-in map would have chosen, so a rule can restyle just the colour
+	 * without also having to re-pick the emoji.
+	 *
+	 * Re-validated on read (not just on save) because the option is also
+	 * reachable from WP-CLI and older saved shapes should never reach display.
+	 *
+	 * @return array<int, array{match:string, icon:string, color:string}>
+	 */
+	public static function type_rules(): array {
+		$rows = get_option( self::OPT_TYPE_RULES, [] );
+		if ( ! is_array( $rows ) ) {
+			return [];
+		}
+		$out = [];
+		foreach ( $rows as $row ) {
+			if ( ! is_array( $row ) ) {
+				continue;
+			}
+			$match = trim( (string) ( $row['match'] ?? '' ) );
+			if ( '' === $match ) {
+				continue; // a row with nothing to match on is not a rule
+			}
+			$out[] = [
+				'match' => $match,
+				'icon'  => trim( (string) ( $row['icon'] ?? '' ) ),
+				'color' => trim( (string) ( $row['color'] ?? '' ) ),
+			];
+		}
+		return $out;
+	}
 
 	/**
 	 * The title text that makes an event a "Dinner Night" for
@@ -159,6 +203,66 @@ final class Settings {
 			'type'              => 'string',
 			'sanitize_callback' => 'sanitize_text_field',
 		] );
+		register_setting( 'gasf_events_settings', self::OPT_TYPE_RULES, [
+			'type'              => 'array',
+			'sanitize_callback' => [ $this, 'sanitize_type_rules' ],
+		] );
+	}
+
+	/**
+	 * Rows arrive as gasf_events_type_rules[N][match|icon|color]. Rows with a
+	 * blank match are dropped, which is also how the UI deletes a rule: remove
+	 * the row and it simply stops being submitted. Deleting every row submits
+	 * nothing at all — options.php then passes null, which casts to an empty
+	 * array here, so "no custom rules" saves correctly.
+	 */
+	public function sanitize_type_rules( $input ): array {
+		$out = [];
+		foreach ( (array) $input as $row ) {
+			if ( ! is_array( $row ) ) {
+				continue;
+			}
+			$match = sanitize_text_field( (string) ( $row['match'] ?? '' ) );
+			if ( '' === trim( $match ) ) {
+				continue;
+			}
+			$out[] = [
+				'match' => trim( $match ),
+				'icon'  => self::sanitize_icon( (string) ( $row['icon'] ?? '' ) ),
+				'color' => self::sanitize_hex_color( (string) ( $row['color'] ?? '' ) ),
+			];
+		}
+		return $out;
+	}
+
+	/**
+	 * An emoji, or ''. sanitize_text_field() is UTF-8 safe (it strips tags and
+	 * nulls, not multibyte characters), so the emoji survives; the length cap
+	 * is what keeps somebody from pasting a paragraph into a 1-glyph column.
+	 * 8 code points is generous enough for ZWJ sequences like 👨‍👩‍👧‍👦 and flags
+	 * like 🇩🇪 (2 code points), which a tighter cap would truncate into mojibake.
+	 */
+	private static function sanitize_icon( string $v ): string {
+		$v = trim( sanitize_text_field( $v ) );
+		return '' === $v ? '' : mb_substr( $v, 0, 8 );
+	}
+
+	/**
+	 * A #rgb / #rrggbb colour, or '' (meaning "inherit the built-in colour").
+	 * Hand-rolled rather than using core's sanitize_hex_color(): that one lives
+	 * in wp-admin and is not guaranteed loaded wherever a sanitize callback or
+	 * a WP-CLI write runs. An unparseable value returns '' rather than a
+	 * fallback colour, so a typo inherits instead of silently painting grey.
+	 */
+	private static function sanitize_hex_color( string $v ): string {
+		$v = trim( $v );
+		if ( '' === $v ) {
+			return '';
+		}
+		if ( '#' !== $v[0] ) {
+			$v = '#' . $v;
+		}
+		return preg_match( '/^#([0-9a-f]{3}){1,2}$/i', $v ) ? strtolower( $v ) : '';
 	}
 
 	public function sanitize_venue( $input ): array {
@@ -195,6 +299,9 @@ final class Settings {
 		$alert_email   = Alerts::email();
 		$dinner_filter = self::dinner_filter();
 		$bayern_filter = self::bayern_filter();
+		// One empty row so the table is never a bare header; it is dropped on
+		// save (blank match), so an untouched form saves no rules.
+		$type_rules = self::type_rules() ?: [ [ 'match' => '', 'icon' => '', 'color' => '' ] ];
 		require GASF_EVENTS_DIR . 'admin/views/settings.php';
 	}
 }
