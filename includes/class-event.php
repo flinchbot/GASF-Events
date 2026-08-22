@@ -328,6 +328,16 @@ final class Event {
 		return (string) $this->meta( Meta::ONLINE_LINK );
 	}
 
+	/** Kiosk "how to watch" override: HDMI input ('' = no override). */
+	public function tv_input(): string {
+		return (string) $this->meta( Meta::TV_INPUT );
+	}
+
+	/** Kiosk "how to watch" override: DirecTV channel or app slug ('' = none). */
+	public function tv_channel(): string {
+		return (string) $this->meta( Meta::TV_CHANNEL );
+	}
+
 	/* ---- Syndication / stats ------------------------------------------ */
 
 	/** Per-destination publish state: [ '<dest>' => {id,url,status,synced_at,error} ]. */

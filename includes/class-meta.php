@@ -33,6 +33,11 @@ final class Meta {
 	const MORE_INFO_TITLE = '_gasf_more_info_title';// string
 	const COST           = '_gasf_cost';            // decimal (only when > 0)
 
+	// How to watch (Bierstube kiosk game tiles — written by GASF-Utilities'
+	// Game TV tab, read out through the REST feed's tv_input / tv_channel).
+	const TV_INPUT   = '_gasf_tv_input';    // '' | directv | googletv | roku | fire
+	const TV_CHANNEL = '_gasf_tv_channel';  // DirecTV channel number or app slug
+
 	// Provenance & sync.
 	const SOURCE       = '_gasf_source';        // manual | facebook | ics | eventbrite
 	const SOURCE_UID   = '_gasf_source_uid';    // universal dedup key, namespaced "<source>|<uid>"

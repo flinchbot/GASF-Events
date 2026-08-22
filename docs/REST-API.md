@@ -89,6 +89,8 @@ the order you list them in.
 | `series_id` | string | Groups occurrences of a recurring event; `""` when standalone. |
 | `source` | string | `manual` (the default), `facebook`, or another feed identifier. |
 | `modified` | string | ISO 8601 UTC — pair with `updated_since`. |
+| `tv_input` | string | Kiosk "how to watch" override: `directv`, `googletv`, `roku`, `fire`, or `""` (no override — the kiosk uses its pinned-tile default). Set per event on the GASF-Utilities → Game TV tab. |
+| `tv_channel` | string | Companion to `tv_input`: a DirecTV channel number (e.g. `242`) or an app slug (`fandango`, `paramount`, `youtube`). `""` when unset. |
 
 `image` and `description` are the two expensive fields: `description` expands
 shortcodes and `image` hits the attachment tables. Leaving them out of `fields`

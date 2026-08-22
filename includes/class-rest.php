@@ -25,6 +25,7 @@ final class Rest {
 	const FIELDS = [
 		'id', 'title', 'slug', 'url', 'start', 'end', 'all_day', 'status',
 		'image', 'description', 'organizer', 'venue', 'series_id', 'source', 'modified',
+		'tv_input', 'tv_channel',
 	];
 
 	public function register_hooks(): void {
@@ -197,6 +198,13 @@ final class Rest {
 				return $e->source();
 			case 'modified':
 				return get_post_modified_time( 'c', true, $e->post() );
+			// "How to watch" override for the Bierstube kiosk game tiles —
+			// written per event by GASF-Utilities' Game TV tab. '' = no
+			// override (the kiosk falls back to its pinned-tile default).
+			case 'tv_input':
+				return $e->tv_input();
+			case 'tv_channel':
+				return $e->tv_channel();
 		}
 		return null; // unreachable: resolve_fields() rejects unknown names
 	}
