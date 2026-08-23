@@ -17,11 +17,13 @@ A lean, native WordPress events plugin for the **German American Society of Tamp
 A read-only JSON feed of published events, no key required:
 
 ```
-GET /wp-json/gasf-events/v1/events?limit=5&fields=title,start,image
+GET /wp-json/gasf-events/v1/events?event=FCBayern&instance=2&fields=title,start,image
 ```
 
-`limit`, `order`, `from`/`to`, `updated_since`, and a `fields` include/exclude
-list. See [`docs/REST-API.md`](docs/REST-API.md).
+`event` presets (`fcbayern`, `dinner`) or literal `contains` text, `instance` to
+pick the next / the one after, plus `limit`, `order`, `from`/`to`,
+`updated_since`, and a `fields` include/exclude list.
+See [`docs/REST-API.md`](docs/REST-API.md).
 
 ## Phases
 

@@ -21,6 +21,9 @@ https://germantampabay.com/wp-json/gasf-events/v1/events
 | Param | Default | Notes |
 |---|---|---|
 | `limit` | `100` | 1–500. Values outside the range clamp rather than error. |
+| `instance` | — | Pick a single event by position: `1` = the next one, `2` = the one after. See [Picking one event](#picking-one-event). |
+| `event` | — | A named preset — `fcbayern` or `dinner`. See [Filtering by kind of event](#filtering-by-kind-of-event). |
+| `contains` | — | Literal title text to match, for anything without a preset. |
 | `order` | `asc` | `asc` = soonest first, `desc` = latest first. Case-insensitive; anything else is a 400. |
 | `fields` | *(all)* | Which keys to return — see [Choosing fields](#choosing-fields). |
 | `from` | *(now)* | Start of the window. `YYYY-MM-DD`, an ISO datetime, or a unix timestamp. |
@@ -35,6 +38,62 @@ finished yet). Supplying either one switches to an explicit window, so
 
 - `X-GASF-Count` — number of events in the body.
 - `Cache-Control: public, max-age=120`.
+
+---
+
+## Filtering by kind of event
+
+`event=` takes a **named preset**, which resolves to the title text configured in
+**Events → Settings → Event list filters** — the same value the
+`[gasf_bayern_events]` and `[gasf_dinner_events]` shortcodes use. Retitle your
+match events in Settings and the API follows automatically.
+
+| Preset | Also accepts | Matches |
+|---|---|---|
+| `fcbayern` | `bayern`, `fcb`, `bayern munich`, `FC-Bayern` | Settings → *FC Bayern matches* (default `FC Bayern v`) |
+| `dinner` | `dinner night` | Settings → *Dinner Nights* (default `Dinner`) |
+
+Spelling is forgiving: case, spaces, hyphens and underscores are all ignored, so
+`FCBayern`, `fc-bayern` and `FC Bayern` are the same preset.
+
+```
+/events?event=FCBayern
+```
+
+For anything without a preset, `contains=` takes literal title text — a
+case-insensitive substring match, the same rule the shortcodes use:
+
+```
+/events?contains=Euchre
+```
+
+Use one or the other; sending both is a 400. An unrecognised `event=` is also a
+400 that lists the valid presets and points you at `contains=`.
+
+---
+
+## Picking one event
+
+`instance=` selects a **single** event by position in the result, counting from
+**1**:
+
+```
+/events?event=FCBayern&instance=1     ← the next Bayern match
+/events?event=FCBayern&instance=2     ← the one after that
+```
+
+It works with or without a filter — `?instance=2` alone is the second upcoming
+event of any kind — and composes with `contains=` the same way.
+
+- The response is still an **array**, holding one object. It does not become a
+  bare object, so consumers never have to branch on the shape.
+- Asking past the end returns `[]` with `X-GASF-Count: 0`, not a 404.
+- `instance` is a position, not a count, so combining it with `limit` is a 400.
+  Use one or the other.
+
+> **Separate parameters with `&`, not `?`.** A URL has only one `?` — the rest
+> are `&`. `?event=FCBayern&instance=2` is right; `?event=FCBayern?instance=2`
+> is not, and returns a 400 that shows you the corrected URL.
 
 ---
 
@@ -128,10 +187,48 @@ event is not published.
 | `gasf_fields_unknown` | A name in `fields` isn't a real field. |
 | `gasf_fields_mixed` | `fields` mixed plain and `-` prefixed names. |
 | `gasf_order_invalid` | `order` was neither `asc` nor `desc`. |
+| `gasf_event_unknown` | `event` wasn't a known preset. |
+| `gasf_event_and_contains` | Both `event` and `contains` were sent. |
+| `gasf_instance_with_limit` | Both `instance` and `limit` were sent. |
+| `gasf_instance_invalid` | `instance` was zero, negative, or not a number. |
+| `gasf_query_separator` | A `?` was used where a `&` belongs. |
 
 ---
 
 ## Recipes
+
+The next FC Bayern match:
+
+```
+/events?event=FCBayern&instance=1
+```
+
+The match after next, just what a card needs:
+
+```
+/events?event=FCBayern&instance=2&fields=title,start,image
+```
+```json
+[
+  {
+    "title": "FC Bayern v Leipzig",
+    "start": "2026-09-19T14:30:00-04:00",
+    "image": "https://germantampabay.com/wp-content/uploads/bayern.jpg"
+  }
+]
+```
+
+The next five Bayern matches instead of just one:
+
+```
+/events?event=FCBayern&limit=5&fields=title,start,image
+```
+
+The next Dinner Night:
+
+```
+/events?event=dinner&instance=1&fields=title,start,url
+```
 
 The next event, minimal payload — for a "coming up next" widget:
 
