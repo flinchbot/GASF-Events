@@ -18,6 +18,19 @@ final class Rest {
 	const NS = 'gasf-events/v1';
 
 	/**
+	 * Hard-deleted event ids, keyed id => unix delete time, for the changes
+	 * feed. A drafted or trashed post is still in the table and /events/changes
+	 * finds it by status; a permanently deleted one leaves nothing behind, so
+	 * its id has to be written down at the moment it goes or the feed can never
+	 * tell a consumer to drop it.
+	 */
+	const TOMBSTONES = 'gasf_events_tombstones';
+
+	/** How long a tombstone is kept. Bounds the option; far longer than any
+	 * sane consumer's polling gap, so nothing is missed in practice. */
+	const TOMBSTONE_TTL = 7776000; // 90 days
+
+	/**
 	 * Every field the payload can carry, in output order. Omitting `fields`
 	 * returns all of them — that default IS the locked contract the kiosk is
 	 * being built against (§7), so this list only ever grows at the end.
@@ -49,6 +62,7 @@ final class Rest {
 
 	public function register_hooks(): void {
 		add_action( 'rest_api_init', [ $this, 'routes' ] );
+		add_action( 'before_delete_post', [ __CLASS__, 'record_tombstone' ], 10, 2 );
 	}
 
 	public function routes(): void {
@@ -82,6 +96,19 @@ final class Rest {
 				'fields' => [ 'sanitize_callback' => 'sanitize_text_field' ],
 			],
 			'callback'            => [ $this, 'single' ],
+		] );
+		// Registered alongside /events/(\d+) rather than as a parameter on it:
+		// "changes" cannot match \d+, so the two never collide, and keeping the
+		// delta shape off /events leaves that frozen payload (§7) untouched.
+		register_rest_route( self::NS, '/events/changes', [
+			'methods'             => 'GET',
+			'permission_callback' => '__return_true',
+			'args'                => [
+				'since'  => [ 'required' => true, 'sanitize_callback' => 'sanitize_text_field' ],
+				'fields' => [ 'sanitize_callback' => 'sanitize_text_field' ],
+				'limit'  => [ 'sanitize_callback' => 'absint' ],
+			],
+			'callback'            => [ $this, 'changes' ],
 		] );
 	}
 
@@ -133,16 +160,24 @@ final class Rest {
 			$limit = $has_limit ? min( 500, max( 1, (int) $req['limit'] ) ) : 100;
 		}
 
-		$from = (string) $req['from'];
-		$to   = (string) $req['to'];
+		$from = trim( (string) $req['from'] );
+		$to   = trim( (string) $req['to'] );
 
 		$meta_query = [ 'relation' => 'AND' ];
-		if ( $from || $to ) {
-			if ( $from ) {
-				$meta_query[] = [ 'key' => Meta::END_TS, 'value' => self::ts( $from ), 'type' => 'NUMERIC', 'compare' => '>=' ];
+		if ( '' !== $from || '' !== $to ) {
+			if ( '' !== $from ) {
+				$from_ts = self::parse_date( $from, 'from' );
+				if ( is_wp_error( $from_ts ) ) {
+					return $from_ts;
+				}
+				$meta_query[] = [ 'key' => Meta::END_TS, 'value' => $from_ts, 'type' => 'NUMERIC', 'compare' => '>=' ];
 			}
-			if ( $to ) {
-				$meta_query[] = [ 'key' => Meta::START_TS, 'value' => self::ts( $to ), 'type' => 'NUMERIC', 'compare' => '<=' ];
+			if ( '' !== $to ) {
+				$to_ts = self::parse_date( $to, 'to' );
+				if ( is_wp_error( $to_ts ) ) {
+					return $to_ts;
+				}
+				$meta_query[] = [ 'key' => Meta::START_TS, 'value' => $to_ts, 'type' => 'NUMERIC', 'compare' => '<=' ];
 			}
 		} else {
 			// Default: upcoming.
@@ -167,11 +202,13 @@ final class Rest {
 			$args['offset'] = $offset;
 		}
 
-		if ( ! empty( $req['updated_since'] ) ) {
-			$ts = self::ts( (string) $req['updated_since'] );
-			if ( $ts ) {
-				$args['date_query'] = [ [ 'column' => 'post_modified_gmt', 'after' => gmdate( 'Y-m-d H:i:s', $ts ), 'inclusive' => false ] ];
+		$since_raw = trim( (string) $req['updated_since'] );
+		if ( '' !== $since_raw ) {
+			$since_ts = self::parse_date( $since_raw, 'updated_since' );
+			if ( is_wp_error( $since_ts ) ) {
+				return $since_ts;
 			}
+			$args['date_query'] = [ [ 'column' => 'post_modified_gmt', 'after' => gmdate( 'Y-m-d H:i:s', $since_ts ), 'inclusive' => false ] ];
 		}
 
 		$q    = $this->query( $args, $contains );
@@ -193,6 +230,127 @@ final class Rest {
 			return new \WP_REST_Response( [ 'error' => 'not_found' ], 404 );
 		}
 		return new \WP_REST_Response( $this->to_json( $e, $fields ) );
+	}
+
+	/**
+	 * Delta feed for incremental consumers: what changed since a checkpoint.
+	 *
+	 * /events answers "what is published right now", which is the wrong shape to
+	 * sync against: an unpublished event simply stops appearing, and a consumer
+	 * has no way to learn it should drop the copy it is still showing. That is
+	 * not hypothetical here — Event_Ingest::prune_missing() drafts events on its
+	 * own, so the system manufactures disappearances nobody typed.
+	 *
+	 * Returns { since, now, updated[], removed[] }. Poll with the previous
+	 * response's `now` as the next `since`. `updated` is ordered oldest-modified
+	 * first, so a consumer that stops halfway can resume rather than restart.
+	 */
+	public function changes( \WP_REST_Request $req ) {
+		$fields = $this->resolve_fields( (string) $req['fields'] );
+		if ( is_wp_error( $fields ) ) {
+			return $fields;
+		}
+		$since = self::parse_date( (string) $req['since'], 'since' );
+		if ( is_wp_error( $since ) ) {
+			return $since;
+		}
+
+		$has_limit = null !== $req['limit'] && '' !== (string) $req['limit'];
+		$limit     = $has_limit ? min( 500, max( 1, (int) $req['limit'] ) ) : 500;
+
+		$common = [
+			'post_type'           => GASF_EVENTS_CPT,
+			'posts_per_page'      => $limit,
+			'orderby'             => 'modified',
+			'order'               => 'ASC',
+			'no_found_rows'       => true,
+			'ignore_sticky_posts' => true,
+			'date_query'          => [ [
+				'column'    => 'post_modified_gmt',
+				'after'     => gmdate( 'Y-m-d H:i:s', $since ),
+				'inclusive' => false,
+			] ],
+		];
+
+		$updated = new \WP_Query( $common + [ 'post_status' => 'publish' ] );
+
+		// Anything no longer published is "gone" to this feed's consumers: /events
+		// will not return it again until it is republished, so a cached copy has to
+		// be dropped either way. Reported as ids, not objects — there is nothing
+		// useful left to say about an event that should disappear.
+		$gone = new \WP_Query( $common + [
+			'post_status' => [ 'draft', 'pending', 'private', 'future', 'trash' ],
+			'fields'      => 'ids',
+		] );
+
+		$removed = array_map( 'intval', $gone->posts );
+		foreach ( (array) get_option( self::TOMBSTONES, [] ) as $id => $ts ) {
+			if ( (int) $ts > $since ) {
+				$removed[] = (int) $id;
+			}
+		}
+		$removed = array_values( array_unique( $removed ) );
+
+		$resp = new \WP_REST_Response( [
+			'since'   => gmdate( 'c', $since ),
+			'now'     => gmdate( 'c' ),
+			'updated' => array_map( fn( $p ) => $this->to_json( new Event( $p ), $fields ), $updated->posts ),
+			'removed' => $removed,
+		] );
+		$resp->header( 'X-GASF-Count', (string) count( $updated->posts ) );
+		$resp->header( 'X-GASF-Removed', (string) count( $removed ) );
+		// A delta belongs to one caller's checkpoint; it is never shared.
+		$resp->header( 'Cache-Control', 'no-store' );
+		return $resp;
+	}
+
+	/**
+	 * Remember a permanently deleted event long enough for the changes feed to
+	 * report it. Draft and trash need no hook — the row survives and changes()
+	 * finds it by status — but a hard delete leaves nothing to find.
+	 *
+	 * @param int           $post_id Post being deleted.
+	 * @param \WP_Post|null $post    The post object, when WordPress passes one.
+	 */
+	public static function record_tombstone( int $post_id, $post = null ): void {
+		$type = $post instanceof \WP_Post ? $post->post_type : get_post_type( $post_id );
+		if ( GASF_EVENTS_CPT !== $type ) {
+			return;
+		}
+		$now    = time();
+		$stones = (array) get_option( self::TOMBSTONES, [] );
+		// Pruned on write because this is the only thing that grows the option, so
+		// it is also the only place that has to bound it.
+		$stones = array_filter( $stones, static fn( $ts ) => ( $now - (int) $ts ) < self::TOMBSTONE_TTL );
+		$stones[ (string) $post_id ] = $now;
+		update_option( self::TOMBSTONES, $stones, false );
+	}
+
+	/**
+	 * A caller-supplied date as a timestamp, or a 400 naming what was wrong.
+	 *
+	 * Quietly ignoring an unreadable date is the one thing this API refused to do
+	 * everywhere else — order=descending and a misspelt field are both errors —
+	 * and dates were the gap: ?from=garbage used to return the whole archive with
+	 * a 200, which reads as a successful answer to a question nobody asked.
+	 *
+	 * @return int|\WP_Error
+	 */
+	private static function parse_date( string $raw, string $param ) {
+		$ts = self::ts( $raw );
+		if ( null === $ts ) {
+			return new \WP_Error(
+				'gasf_date_invalid',
+				sprintf(
+					/* translators: 1: parameter name, 2: the value that could not be parsed */
+					__( 'The %1$s parameter is not a date I can read: "%2$s". Use YYYY-MM-DD, an ISO 8601 datetime, or a unix timestamp.', 'gasf-events' ),
+					$param,
+					$raw
+				),
+				[ 'status' => 400, 'param' => $param, 'value' => $raw ]
+			);
+		}
+		return $ts;
 	}
 
 	/**
@@ -441,11 +599,18 @@ final class Rest {
 		return null;
 	}
 
-	/** Parse a date/ISO/epoch string to a unix timestamp (site-tz aware for dates). */
-	private static function ts( string $v ): int {
+	/**
+	 * Parse a date/ISO/epoch string to a unix timestamp (site-tz aware for dates).
+	 *
+	 * Returns NULL when the value cannot be parsed, which is the whole point:
+	 * returning 0 for both "empty" and "nonsense" is what let ?from=garbage fall
+	 * through to END_TS >= 0 and quietly serve the entire archive as though it
+	 * were the window the caller asked for. Callers reject null instead.
+	 */
+	private static function ts( string $v ): ?int {
 		$v = trim( $v );
 		if ( '' === $v ) {
-			return 0;
+			return null;
 		}
 		if ( ctype_digit( $v ) ) {
 			return (int) $v;
@@ -455,6 +620,6 @@ final class Rest {
 			return Meta::local_to_ts( $v . ' 00:00:00' );
 		}
 		$t = strtotime( $v );
-		return $t ?: 0;
+		return false === $t ? null : $t;
 	}
 }

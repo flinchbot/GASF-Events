@@ -26,9 +26,9 @@ https://germantampabay.com/wp-json/gasf-events/v1/events
 | `contains` | — | Literal title text to match, for anything without a preset. |
 | `order` | `asc` | `asc` = soonest first, `desc` = latest first. Case-insensitive; anything else is a 400. |
 | `fields` | *(all)* | Which keys to return — see [Choosing fields](#choosing-fields). |
-| `from` | *(now)* | Start of the window. `YYYY-MM-DD`, an ISO datetime, or a unix timestamp. |
-| `to` | — | End of the window, same formats. |
-| `updated_since` | — | Only events modified after this. For incremental sync. |
+| `from` | *(now)* | Start of the window. `YYYY-MM-DD`, an ISO datetime, or a unix timestamp. A value that cannot be parsed is a `400`. |
+| `to` | — | End of the window, same formats and the same `400`. |
+| `updated_since` | — | Only events modified after this. Same formats. For incremental sync — but read [Syncing](#syncing) first, because on its own it cannot tell you an event went away. |
 
 Omitting both `from` and `to` gives upcoming events only (anything that has not
 finished yet). Supplying either one switches to an explicit window, so
@@ -37,7 +37,11 @@ finished yet). Supplying either one switches to an explicit window, so
 ### Response headers
 
 - `X-GASF-Count` — number of events in the body.
-- `Cache-Control: public, max-age=120`.
+- `Cache-Control: public, max-age=120` — set by the plugin, but **currently
+  stripped before it reaches you.** Server config rewrites `Cache-Control` to
+  `no-store` for everything under `/wp-json`, so nothing caches these responses:
+  not browsers, not the CDN. Assume every request is a live database hit and
+  poll accordingly. Tracked as a config fix, not a plugin one.
 
 ---
 
@@ -99,7 +103,7 @@ event of any kind — and composes with `contains=` the same way.
 
 ## Choosing fields
 
-By default every event carries all 15 fields. `fields` takes **either** a list to
+By default every event carries all 17 fields. `fields` takes **either** a list to
 include **or** a list of `-` prefixed names to exclude — not both in one request.
 
 **Include only what you name:**
@@ -170,6 +174,57 @@ event is not published.
 
 ---
 
+## Syncing
+
+`updated_since` answers *"what changed?"* but not *"what went away?"*. Both
+list routes return published events only, so an event that gets unpublished
+simply stops appearing — there is nothing in the response that tells a consumer
+to drop the copy it is already showing.
+
+That is not a theoretical case on this site. The feed importer drafts events by
+itself when they vanish from their upstream source, so events disappear without
+anyone touching them.
+
+**If you cache events, poll `/events/changes` instead.**
+
+### `GET /events/changes`
+
+```
+/events/changes?since=2026-08-01T12:00:00Z
+```
+
+```json
+{
+  "since":   "2026-08-01T12:00:00+00:00",
+  "now":     "2026-08-29T18:30:00+00:00",
+  "updated": [ { "id": 16275, "title": "Biergarten", "…": "…" } ],
+  "removed": [ 16111, 16240 ]
+}
+```
+
+| Param | Default | Notes |
+|---|---|---|
+| `since` | *(required)* | Same date formats as `from`. Missing or unparseable is a `400`. |
+| `fields` | *(all)* | Applies to `updated` only, same rules as elsewhere. |
+| `limit` | `500` | 1–500, applied to `updated` and `removed` separately. |
+
+- **`updated`** — full event objects, published, modified after `since`, ordered
+  **oldest-modified first** so a consumer that stops halfway can resume from the
+  last one it handled rather than starting over.
+- **`removed`** — bare ids to drop. Covers unpublished, drafted, trashed and
+  permanently deleted events alike. There is deliberately nothing else in there:
+  an event you are being told to forget has no useful payload.
+- **`now`** — the checkpoint for your next call. Store it and pass it back as
+  `since`; do not use your own clock, which may not agree with the server's.
+
+Deletions are remembered for **90 days**. A consumer that goes quiet for longer
+than that should do a full `/events` read rather than trusting a delta.
+
+Responses are `Cache-Control: no-store` — a delta belongs to one caller's
+checkpoint and is never shared.
+
+---
+
 ## Errors
 
 `400` responses use the standard WordPress REST error shape:
@@ -192,6 +247,7 @@ event is not published.
 | `gasf_instance_with_limit` | Both `instance` and `limit` were sent. |
 | `gasf_instance_invalid` | `instance` was zero, negative, or not a number. |
 | `gasf_query_separator` | A `?` was used where a `&` belongs. |
+| `gasf_date_invalid` | `from`, `to`, `updated_since` or `since` was not a readable date. |
 
 ---
 
@@ -248,10 +304,18 @@ Everything in one month, no bulky text:
 /events?from=2026-10-01&to=2026-10-31&fields=-description
 ```
 
-Incremental sync — poll with the newest `modified` you have stored:
+Everything modified since a checkpoint, ignoring removals — fine for a display
+that re-reads the whole list anyway:
 
 ```
 /events?updated_since=2026-08-01T12:00:00Z&limit=500
+```
+
+Incremental sync for anything that **caches** events — this is the one that also
+tells you what to delete:
+
+```
+/events/changes?since=2026-08-01T12:00:00Z
 ```
 
 This month's events, most recent first:
