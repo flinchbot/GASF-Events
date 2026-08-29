@@ -1,7 +1,11 @@
 # Public REST API
 
-Read-only JSON feed of published events. No key, no auth, no write routes — the
-only verb registered is `GET`, and only `publish`-status events are ever queried.
+Public JSON feed of published events. No key and no auth on any route, and only
+`publish`-status events are ever returned.
+
+Everything under `/events` is **read-only `GET`**. There is one exception in the
+namespace — `POST /view`, the view-counter beacon — documented at the bottom. It
+writes a counter, never event content.
 
 Base: `https://germantampabay.com/wp-json/gasf-events/v1`
 
@@ -376,6 +380,43 @@ This month's events, most recent first:
 ```
 /events?from=2026-08-01&to=2026-08-31&order=desc
 ```
+
+---
+
+## `POST /view`
+
+The view-counter beacon. The only non-`GET` route in the namespace, and the only
+one that writes anything. It increments a per-event counter; it cannot create,
+change or delete an event.
+
+Counting happens here rather than server-side during page render because the HTML
+is cached by the CDN, so a render is not a reliable signal that anyone saw it.
+
+```
+POST /wp-json/gasf-events/v1/view
+Content-Type: application/json
+
+{ "id": 16275, "ctx": "kiosk" }
+```
+
+| Param | Default | Notes |
+|---|---|---|
+| `id` | *(required)* | Event post ID. Unknown ids are a `404`. |
+| `ctx` | `web` | `web` or `kiosk`. Anything else is treated as `web`. Kiosk views are counted separately as well as in the total. |
+
+Always returns `200` with `{ "ok": true, "counted": <bool> }` when the event
+exists. `counted: false` is normal and not an error — the request was accepted but
+deliberately not tallied:
+
+- the user agent looks like a bot or link-preview fetcher;
+- the same client IP already counted this event within the last **6 hours**;
+- the site-wide cap of **300 counted views per minute** was already reached.
+
+A missing event returns `404` with `{ "ok": false }`.
+
+The browser beacon is injected on single event pages as `window.GASF_VIEW`
+(`{ id, url, ctx }`), and is deliberately not injected for logged-in editors so
+your own visits do not inflate the numbers.
 
 ---
 
