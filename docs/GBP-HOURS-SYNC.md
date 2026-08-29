@@ -108,6 +108,21 @@ quota_limit_value: "0"
 
 Escalated on support case **`6-9389000041422`**.
 
+**Re-tested 2026-08-29** — live call, refresh token against both services:
+
+```
+token refresh        : OK (HTTP 200)
+accountmanagement    : HTTP 429  RESOURCE_EXHAUSTED  quota_limit_value=0
+businessinformation  : HTTP 429  RESOURCE_EXHAUSTED  quota_limit_value=0
+```
+
+Still zero on **both** services, 46 days after the 2026-07-14 approval email. Note
+this contradicts the "Account Management is known to lag behind Business
+Information" expectation below: neither has been provisioned, so there is no
+partial rollout to wait out. Credentials remain healthy — the refresh token still
+exchanges for an access token, which also confirms the consent screen is still
+External + In production (a lapse to Testing would have revoked it after 7 days).
+
 Self-service quota increase is **not** available: that form requires confirming
 "my quota is not currently set to zero," and it is zero. The 0 → 300 step only
 happens through allowlist provisioning.
@@ -122,6 +137,12 @@ an efficiency win, not the only route to correct hours.
 ## 5. Server facts
 
 - Bluehost shared hosting (cPanel), user `germanta`, **SSH port 2222**
+- **SSH does NOT go to `germantampabay.com`.** The public domain sits behind
+  Cloudflare, which does not proxy SSH, so ports 22 and 2222 are both closed at that
+  name. SSH goes to the Bluehost box hostname / origin IP instead — read it from
+  cPanel → *Server Information*, or the Bluehost panel. Deliberately not recorded
+  here: this repo is public, and the origin address is what Cloudflare exists to
+  keep off the open internet. Key: `gasf_bluehost` (ed25519), local, outside the repo.
 - WP root: `/home4/germanta/public_html` → `germantampabay.com`
 - Plugin: `/home4/germanta/public_html/wp-content/plugins/gasf-events`
 - `dirname( ABSPATH )` = `/home4/germanta` — above docroot, not web-reachable
