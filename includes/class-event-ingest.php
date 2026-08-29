@@ -18,6 +18,12 @@ defined( 'ABSPATH' ) || exit;
 
 final class Event_Ingest {
 
+	/** Never auto-draft an event starting within this window: a live event
+	 * vanishing days before it happens is almost always a Facebook Graph API
+	 * feed glitch (it silently drops still-valid occurrences), not a real
+	 * cancellation, and the worst moment to hide it. */
+	const PRUNE_GRACE = 604800; // 7 days
+
 	/**
 	 * Normalized event shape produced by every feed driver:
 	 *   uid, title, description, start (Y-m-d H:i:s local), end, all_day(bool),
@@ -144,7 +150,9 @@ final class Event_Ingest {
 
 	/**
 	 * Increment the miss counter on upcoming events from $feed_id not seen this
-	 * run; draft after 2 misses. Pinned events are exempt. Returns # drafted.
+	 * run; draft after 2 misses. Pinned events, and events starting within
+	 * PRUNE_GRACE, are exempt (an imminent event vanishing is almost always an
+	 * FB feed glitch, not a cancellation). Returns # drafted.
 	 *
 	 * @param string[] $seen_keys SOURCE_UID values seen this run.
 	 */
@@ -172,7 +180,13 @@ final class Event_Ingest {
 				continue;
 			}
 			$misses = (int) get_post_meta( $id, Meta::FB_MISSING, true ) + 1;
-			if ( $misses >= 2 ) {
+
+			// Grace window: an imminent event going missing is almost always an FB
+			// feed glitch, not a cancellation - count the miss but do not unpublish.
+			$start_ts = (int) get_post_meta( $id, Meta::START_TS, true );
+			$imminent = $start_ts > 0 && ( $start_ts - time() ) <= self::PRUNE_GRACE;
+
+			if ( $misses >= 2 && ! $imminent ) {
 				$drafted++;
 				if ( ! $dry ) {
 					Alerts::note_drafted( $id, $feed_id );
