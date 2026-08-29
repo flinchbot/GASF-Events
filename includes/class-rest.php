@@ -31,6 +31,14 @@ final class Rest {
 	const TOMBSTONE_TTL = 7776000; // 90 days
 
 	/**
+	 * Widest span /events/{x-y} will serve. Asking for more is a 400, not a
+	 * quiet trim: handing back 20 of the 50 you asked for is indistinguishable
+	 * from "there are only 20", which is the silent-wrong-answer failure this
+	 * API rejects everywhere else.
+	 */
+	const RANGE_MAX = 20;
+
+	/**
 	 * Every field the payload can carry, in output order. Omitting `fields`
 	 * returns all of them — that default IS the locked contract the kiosk is
 	 * being built against (§7), so this list only ever grows at the end.
@@ -110,6 +118,23 @@ final class Rest {
 			],
 			'callback'            => [ $this, 'changes' ],
 		] );
+		// {x-y} is an inclusive 1-based position span, the same counting that
+		// instance= uses: /events/1-4 is the next event and the three after it.
+		// The dash keeps it clear of /events/{id}, whose pattern is digits only.
+		register_rest_route( self::NS, '/events/(?P<range>\d+-\d+)', [
+			'methods'             => 'GET',
+			'permission_callback' => '__return_true',
+			'args'                => [
+				'from'          => [ 'sanitize_callback' => 'sanitize_text_field' ],
+				'to'            => [ 'sanitize_callback' => 'sanitize_text_field' ],
+				'event'         => [ 'sanitize_callback' => 'sanitize_text_field' ],
+				'contains'      => [ 'sanitize_callback' => 'sanitize_text_field' ],
+				'order'         => [ 'default' => 'asc', 'sanitize_callback' => 'sanitize_text_field' ],
+				'fields'        => [ 'sanitize_callback' => 'sanitize_text_field' ],
+				'updated_since' => [ 'sanitize_callback' => 'sanitize_text_field' ],
+			],
+			'callback'            => [ $this, 'range' ],
+		] );
 	}
 
 	public function events( \WP_REST_Request $req ) {
@@ -117,15 +142,9 @@ final class Rest {
 		if ( is_wp_error( $fields ) ) {
 			return $fields;
 		}
-		// Case-insensitive, but a typo is a 400 rather than a silent fallback —
-		// "order=descending" quietly returning ascending is a nasty surprise.
-		$order = strtolower( trim( (string) $req['order'] ) ) ?: 'asc';
-		if ( ! in_array( $order, [ 'asc', 'desc' ], true ) ) {
-			return new \WP_Error(
-				'gasf_order_invalid',
-				__( 'The order parameter must be asc or desc.', 'gasf-events' ),
-				[ 'status' => 400 ]
-			);
+		$order = self::resolve_order( $req );
+		if ( is_wp_error( $order ) ) {
+			return $order;
 		}
 		$contains = $this->resolve_contains( $req );
 		if ( is_wp_error( $contains ) ) {
@@ -160,6 +179,126 @@ final class Rest {
 			$limit = $has_limit ? min( 500, max( 1, (int) $req['limit'] ) ) : 100;
 		}
 
+		return $this->collect( $req, $fields, $order, $contains, $offset, $limit );
+	}
+
+	/**
+	 * A positional slice: /events/{x-y} returns the events at positions x to y
+	 * inclusive, counting from 1, after every filter has been applied.
+	 *
+	 *   /events/1-4                  the next event and the three after it
+	 *   /events/1-5?event=FCBayern   the next five Bayern matches
+	 *
+	 * It is instance= widened from one event to a span, and inherits the same
+	 * answers: positions are 1-based, and asking past the end is an empty array
+	 * with X-GASF-Count: 0 rather than a 404 — "no fifth match yet" is an empty
+	 * result, not a missing resource.
+	 */
+	public function range( \WP_REST_Request $req ) {
+		$fields = $this->resolve_fields( (string) $req['fields'] );
+		if ( is_wp_error( $fields ) ) {
+			return $fields;
+		}
+		$order = self::resolve_order( $req );
+		if ( is_wp_error( $order ) ) {
+			return $order;
+		}
+		$contains = $this->resolve_contains( $req );
+		if ( is_wp_error( $contains ) ) {
+			return $contains;
+		}
+
+		// limit and instance both describe how many events to return, which the
+		// range has already said. Quietly ignoring one would serve a payload the
+		// caller did not ask for — same rule as instance+limit.
+		foreach ( [ 'limit', 'instance' ] as $conflict ) {
+			if ( null !== $req[ $conflict ] && '' !== (string) $req[ $conflict ] ) {
+				return new \WP_Error(
+					'gasf_range_with_count',
+					sprintf(
+						/* translators: %s: the conflicting parameter name */
+						__( 'A /events/{x-y} range already says which events to return, so it cannot be combined with %s.', 'gasf-events' ),
+						$conflict
+					),
+					[ 'status' => 400, 'param' => $conflict ]
+				);
+			}
+		}
+
+		// The route pattern guarantees digits-dash-digits, so this cannot fail.
+		[ $first, $last ] = array_map( 'intval', explode( '-', (string) $req['range'], 2 ) );
+
+		if ( $first < 1 ) {
+			return new \WP_Error(
+				'gasf_range_invalid',
+				__( 'A range counts from 1, so /events/1-4 is the next four events.', 'gasf-events' ),
+				[ 'status' => 400 ]
+			);
+		}
+		if ( $last < $first ) {
+			return new \WP_Error(
+				'gasf_range_backwards',
+				sprintf(
+					/* translators: 1: first position, 2: last position */
+					__( 'The range %1$d-%2$d ends before it starts. Write it low to high, and use order=desc to read backwards.', 'gasf-events' ),
+					$first,
+					$last
+				),
+				[ 'status' => 400 ]
+			);
+		}
+
+		$span = $last - $first + 1;
+		if ( $span > self::RANGE_MAX ) {
+			return new \WP_Error(
+				'gasf_range_too_wide',
+				sprintf(
+					/* translators: 1: number of events asked for, 2: the cap */
+					__( 'That range asks for %1$d events; one range can return at most %2$d. Narrow it, or use limit= for a longer run.', 'gasf-events' ),
+					$span,
+					self::RANGE_MAX
+				),
+				[ 'status' => 400, 'requested' => $span, 'max' => self::RANGE_MAX ]
+			);
+		}
+
+		$resp = $this->collect( $req, $fields, $order, $contains, $first - 1, $span );
+		if ( ! is_wp_error( $resp ) ) {
+			// Echoed back so a caller holding a short array can tell "you reached the
+			// end of the calendar" from "you asked for a different window".
+			$resp->header( 'X-GASF-Range', $first . '-' . $last );
+		}
+		return $resp;
+	}
+
+	/**
+	 * asc/desc, case-insensitive. A typo is a 400 rather than a silent fallback:
+	 * "order=descending" quietly returning ascending is a nasty surprise.
+	 *
+	 * @return string|\WP_Error
+	 */
+	private static function resolve_order( \WP_REST_Request $req ) {
+		$order = strtolower( trim( (string) $req['order'] ) ) ?: 'asc';
+		if ( ! in_array( $order, [ 'asc', 'desc' ], true ) ) {
+			return new \WP_Error(
+				'gasf_order_invalid',
+				__( 'The order parameter must be asc or desc.', 'gasf-events' ),
+				[ 'status' => 400 ]
+			);
+		}
+		return $order;
+	}
+
+	/**
+	 * Window, query and payload shared by every list route, so /events and
+	 * /events/{x-y} cannot drift apart: whatever from/to/updated_since/order/
+	 * fields/event/contains mean on one, they mean on the other. The two routes
+	 * differ only in how they arrive at $offset and $limit.
+	 *
+	 * @param string[]|null $fields Field names to emit, or null for all of them.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	private function collect( \WP_REST_Request $req, ?array $fields, string $order, string $contains, int $offset, int $limit ) {
 		$from = trim( (string) $req['from'] );
 		$to   = trim( (string) $req['to'] );
 

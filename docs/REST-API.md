@@ -101,6 +101,42 @@ event of any kind — and composes with `contains=` the same way.
 
 ---
 
+## Picking a run of events
+
+`/events/{x-y}` returns the events at **positions x to y inclusive**, counting
+from 1, once every filter has been applied. It is `instance=` widened from a
+single event to a span.
+
+```
+/events/1-4                  ← the next event and the three after it
+/events/1-5?event=FCBayern   ← the next five Bayern matches
+/events/2-2                  ← just the second one (same as instance=2)
+```
+
+The response is the **same array** `/events` returns — not a wrapper object — so
+`fields` and everything else behave identically and no consumer has to branch on
+the shape it got back.
+
+| Rule | Behaviour |
+|---|---|
+| Positions | 1-based and inclusive: `1-4` is four events, `2-4` is three. |
+| Cap | **20 events.** `1-50` is a `400`, not a quietly trimmed 20 — a short array is indistinguishable from "there are only 20". |
+| Past the end | `[]` with `X-GASF-Count: 0`, not a `404`. |
+| Partly past the end | `8-12` with only 10 matches returns the 3 that exist. |
+| Backwards | `9-2` is a `400`. Write it low to high and use `order=desc` to read backwards. |
+| With `limit` or `instance` | A `400`. The range already says which events to return. |
+
+Every filter composes: `event`, `contains`, `from`, `to`, `order`, `fields` and
+`updated_since` all mean exactly what they mean on `/events`.
+
+### Response headers
+
+- `X-GASF-Count` — how many events came back, which may be fewer than asked.
+- `X-GASF-Range` — the range echoed back, e.g. `1-4`, so a short array can be
+  told apart from a different window.
+
+---
+
 ## Choosing fields
 
 By default every event carries all 17 fields. `fields` takes **either** a list to
@@ -248,6 +284,10 @@ checkpoint and is never shared.
 | `gasf_instance_invalid` | `instance` was zero, negative, or not a number. |
 | `gasf_query_separator` | A `?` was used where a `&` belongs. |
 | `gasf_date_invalid` | `from`, `to`, `updated_since` or `since` was not a readable date. |
+| `gasf_range_invalid` | A `/events/{x-y}` range started below 1. |
+| `gasf_range_backwards` | A range ended before it started, e.g. `9-2`. |
+| `gasf_range_too_wide` | A range asked for more than 20 events. |
+| `gasf_range_with_count` | A range was combined with `limit` or `instance`. |
 
 ---
 
@@ -278,6 +318,19 @@ The next five Bayern matches instead of just one:
 
 ```
 /events?event=FCBayern&limit=5&fields=title,start,image
+```
+
+The same five as a positional range — handy when you want "the next N" without
+thinking about `limit` semantics:
+
+```
+/events/1-5?event=FCBayern&fields=title,start,image
+```
+
+Matches two through four, skipping the one about to kick off:
+
+```
+/events/2-4?event=FCBayern&fields=title,start
 ```
 
 The next Dinner Night:
